@@ -1,0 +1,179 @@
+// Narrow release helper: current Git credential, this repo, user-owned Crux Motion only.
+// No secrets are printed, persisted, passed in command arguments or added to Git URLs.
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("../..", import.meta.url));
+const user = "superjay0208";
+const repo = "crux-motion";
+const remote = `https://github.com/${user}/${repo}.git`;
+
+const safeRoot = root.replace(/\\/g, "/");
+
+const run = (args) => {
+  const result = spawnSync(
+    "git",
+    ["-c", `safe.directory=${safeRoot}`, ...args],
+    {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 300000,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: "0",
+        GCM_INTERACTIVE: "never",
+      },
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(`git ${args[0]} failed: ${result.stderr.trim()}`);
+  }
+  return result.stdout.trim();
+};
+
+const verifyPrivacyGate = () => {
+  const tracked = run(["ls-files"]);
+  const forbidden = tracked
+    .split(/\r?\n/)
+    .filter(
+      (f) =>
+        f &&
+        /(^|\/)(personal-recordings|\.analysis-tools|\.npm-cache|research\/upstream)(\/|$)/i.test(
+          f,
+        ),
+    );
+  if (forbidden.length > 0) {
+    throw new Error(
+      `Refusing to publish: forbidden local file tracked in Git (${forbidden[0]}).`,
+    );
+  }
+};
+
+verifyPrivacyGate();
+
+const credential = spawnSync(
+  "git",
+  ["-c", `safe.directory=${safeRoot}`, "credential", "fill"],
+  {
+    cwd: root,
+    input: "protocol=https\nhost=github.com\n\n",
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 10000,
+    env: {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: "0",
+      GCM_INTERACTIVE: "never",
+    },
+  },
+);
+const password = (credential.stdout || "")
+  .split(/\r?\n/)
+  .find((line) => line.startsWith("password="))
+  ?.slice(9)
+  .trim();
+if (!password) {
+  throw new Error(
+    "No GitHub login available. Sign in through Git Credential Manager or gh auth login.",
+  );
+}
+
+const api = async (endpoint, method = "GET", body, allow404 = false) => {
+  const response = await fetch(`https://api.github.com${endpoint}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${password}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "crux-motion-release",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  if (allow404 && response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `GitHub ${method} ${endpoint}: ${response.status}, ${data?.message ?? "unknown error"}`,
+    );
+  }
+  return data;
+};
+
+const identity = await api("/user");
+if (identity.login.toLowerCase() !== user) {
+  throw new Error(`Signed in as ${identity.login}; expected ${user}.`);
+}
+
+if (!process.argv.includes("--publish")) {
+  const repository = await api(`/repos/${user}/${repo}`, "GET", undefined, true);
+  const runs = repository
+    ? await api(`/repos/${user}/${repo}/actions/runs?per_page=3`)
+    : { workflow_runs: [] };
+  console.log(
+    JSON.stringify(
+      {
+        login: identity.login,
+        repository: repository?.html_url ?? null,
+        privacyGate: "ok",
+        runs: (runs.workflow_runs ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          status: r.status,
+          conclusion: r.conclusion,
+          url: r.html_url,
+        })),
+      },
+      null,
+      2,
+    ),
+  );
+} else {
+  verifyPrivacyGate();
+  const head = run(["rev-parse", "--verify", "HEAD"]);
+  if (run(["status", "--porcelain", "--untracked-files=no"])) {
+    throw new Error(
+      "Tracked files have uncommitted changes; commit the reviewed milestone before publishing.",
+    );
+  }
+  let repository = await api(`/repos/${user}/${repo}`, "GET", undefined, true);
+  if (!repository) {
+    repository = await api("/user/repos", "POST", {
+      name: repo,
+      private: false,
+      description:
+        "Crux Motion: a local camera-controlled 2D physics campus climbing game.",
+      has_wiki: false,
+      auto_init: false,
+    });
+  }
+  const remotes = run(["remote"])
+    .split(/\r?\n/)
+    .filter(Boolean);
+  if (!remotes.includes("origin")) {
+    run(["remote", "add", "origin", remote]);
+  } else if (run(["remote", "get-url", "origin"]) !== remote) {
+    throw new Error("Unexpected origin; refusing to publish.");
+  }
+  const refs = run(["ls-remote", "--heads", "origin", "main"]);
+  if (refs) {
+    run(["fetch", "origin", "main"]);
+    run(["merge-base", "--is-ancestor", "origin/main", "HEAD"]);
+  }
+  run(["push", "-u", "origin", "main"]);
+  console.log(
+    JSON.stringify(
+      {
+        repository: repository.html_url,
+        branch: "main",
+        commit: head,
+        pushed: true,
+      },
+      null,
+      2,
+    ),
+  );
+}

@@ -1,0 +1,2 @@
+import {pilot} from './pilot';
+for(const index of [6,8]){let done=false;for(const near of [.45,.55,.65,.75]){for(const y of [.35,.25,.45,.55]){for(const offset of [0,.2,.4,.6,.8,1]){for(const settle of [0,20,90]){const options={near,y,offset,settle,releaseTick:index===8?20:30};const s=pilot(index,options);if(s.state==='finished'){console.log(JSON.stringify({index,options,summary:s.summary()}));done=true;break;}}if(done)break;}if(done)break;}if(done)break;}if(!done)console.log('FAILED',index);}

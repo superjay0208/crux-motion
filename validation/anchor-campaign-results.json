@@ -1,0 +1,210 @@
+{
+  "kind": "Existing semantic pilot through the new hand-anchor controller; not human camera acceptance",
+  "results": [
+    {
+      "name": "Jug Ladder",
+      "state": "finished",
+      "ticks": 211,
+      "visited": [
+        "move-0",
+        "move-1",
+        "move-2",
+        "top"
+      ],
+      "caught": 5,
+      "slips": 0,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": false,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Cross Current",
+      "state": "playing",
+      "ticks": 886,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 1,
+      "slips": 0,
+      "goal": "cross",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Edge Etiquette",
+      "state": "fallen",
+      "ticks": 836,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 1,
+      "slips": 1,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Pendulum Bay",
+      "state": "fallen",
+      "ticks": 838,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 2,
+      "slips": 2,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Soft Landing",
+      "state": "finished",
+      "ticks": 231,
+      "visited": [
+        "move-0",
+        "move-1",
+        "move-2",
+        "top"
+      ],
+      "caught": 5,
+      "slips": 0,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Under the Lip",
+      "state": "playing",
+      "ticks": 902,
+      "visited": [
+        "move-0",
+        "move-1"
+      ],
+      "caught": 3,
+      "slips": 1,
+      "goal": "undercling",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": true
+      }
+    },
+    {
+      "name": "Pinch Point",
+      "state": "fallen",
+      "ticks": 856,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 1,
+      "slips": 1,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Quiet Apex",
+      "state": "playing",
+      "ticks": 886,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 1,
+      "slips": 0,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "First Flight",
+      "state": "finished",
+      "ticks": 349,
+      "visited": [
+        "move-0",
+        "top"
+      ],
+      "caught": 4,
+      "slips": 0,
+      "goal": "flight",
+      "met": {
+        "flew": true,
+        "crossed": false,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Catch and Carry",
+      "state": "finished",
+      "ticks": 369,
+      "visited": [
+        "move-0",
+        "move-1",
+        "top"
+      ],
+      "caught": 5,
+      "slips": 0,
+      "goal": "flight",
+      "met": {
+        "flew": true,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Crosswind",
+      "state": "finished",
+      "ticks": 579,
+      "visited": [
+        "move-0",
+        "move-1",
+        "move-2",
+        "top"
+      ],
+      "caught": 5,
+      "slips": 0,
+      "goal": "none",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    },
+    {
+      "name": "Campus Circuit",
+      "state": "fallen",
+      "ticks": 836,
+      "visited": [
+        "move-0"
+      ],
+      "caught": 1,
+      "slips": 1,
+      "goal": "flight",
+      "met": {
+        "flew": false,
+        "crossed": true,
+        "undercling": false
+      }
+    }
+  ]
+}

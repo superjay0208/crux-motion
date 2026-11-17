@@ -1,0 +1,309 @@
+{
+  "generatedAt": "2026-11-12T09:24:56.731Z",
+  "kind": "synthetic semantic controls through real physics; not real-camera validation",
+  "results": [
+    {
+      "route": "motion-01",
+      "name": "Jug Ladder",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 211,
+      "seconds": 1.7583333333333295,
+      "catches": 5,
+      "crossed": false,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9844272942280781,
+        "right": 0.9769613394174027
+      },
+      "overallReserve": 0.9964833333333337,
+      "config": {
+        "y": 0.35,
+        "offset": 0,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-02",
+      "name": "Cross Current",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 238,
+      "seconds": 1.9833333333333287,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9732311454541357,
+        "right": 0.9715734470839937
+      },
+      "overallReserve": 0.9960333333333338,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-03",
+      "name": "Edge Etiquette",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 237,
+      "seconds": 1.9749999999999954,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9709763749716961,
+        "right": 0.9552889867954347
+      },
+      "overallReserve": 0.9960500000000004,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-04",
+      "name": "Pendulum Bay",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 256,
+      "seconds": 2.1333333333333284,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9717996588117666,
+        "right": 0.9675700883325618
+      },
+      "overallReserve": 0.9957333333333338,
+      "config": {
+        "y": 0.25,
+        "offset": 1,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-05",
+      "name": "Soft Landing",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 237,
+      "seconds": 1.9749999999999954,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9723888613520132,
+        "right": 0.9791135184659988
+      },
+      "overallReserve": 0.9960500000000004,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-06",
+      "name": "Under the Lip",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 211,
+      "seconds": 1.7583333333333295,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": true,
+      "remainingReserve": {
+        "left": 0.9808313071188013,
+        "right": 0.9709722479813606
+      },
+      "overallReserve": 0.9964833333333337,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-07",
+      "name": "Pinch Point",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 229,
+      "seconds": 1.908333333333329,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9726890464059862,
+        "right": 0.97440105245777
+      },
+      "overallReserve": 0.9961833333333338,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-08",
+      "name": "Quiet Apex",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 259,
+      "seconds": 2.1583333333333283,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9537320502299267,
+        "right": 0.9722779284651577
+      },
+      "overallReserve": 0.9956833333333338,
+      "config": {
+        "y": 0.25,
+        "offset": 1,
+        "settle": 0,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-09",
+      "name": "First Flight",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 349,
+      "seconds": 2.9083333333333257,
+      "catches": 4,
+      "crossed": false,
+      "flew": true,
+      "longestFlight": 0.12499999999999999,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.969718252153346,
+        "right": 0.965334645281321
+      },
+      "overallReserve": 0.994183333333334,
+      "config": {
+        "y": 0.35,
+        "offset": 0.8,
+        "settle": 0,
+        "releaseTick": 20,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-10",
+      "name": "Catch and Carry",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 368,
+      "seconds": 3.0666666666666584,
+      "catches": 5,
+      "crossed": true,
+      "flew": true,
+      "longestFlight": 0.12499999999999999,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9608187195068701,
+        "right": 0.9659065425514813
+      },
+      "overallReserve": 0.9938666666666673,
+      "config": {
+        "y": 0.35,
+        "offset": 0.6,
+        "settle": 0,
+        "releaseTick": 20,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-11",
+      "name": "Crosswind",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 577,
+      "seconds": 4.808333333333362,
+      "catches": 5,
+      "crossed": true,
+      "flew": false,
+      "longestFlight": 0,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9499235251481492,
+        "right": 0.9467461958884326
+      },
+      "overallReserve": 0.9903833333333344,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 90,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    },
+    {
+      "route": "motion-12",
+      "name": "Campus Circuit",
+      "pass": true,
+      "freshReplay": true,
+      "ticks": 448,
+      "seconds": 3.7333333333333227,
+      "catches": 8,
+      "crossed": true,
+      "flew": true,
+      "longestFlight": 0.12499999999999999,
+      "undercling": false,
+      "remainingReserve": {
+        "left": 0.9410036250369129,
+        "right": 0.9354168719279177
+      },
+      "overallReserve": 0.9925333333333342,
+      "config": {
+        "y": 0.25,
+        "offset": 0.8,
+        "settle": 0,
+        "releaseTick": 30,
+        "controller": "anchors"
+      },
+      "controller": "anchors"
+    }
+  ]
+}

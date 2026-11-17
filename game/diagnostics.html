@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Crux Motion engine checks</title>
+    <style>
+      body {
+        background: #15282d;
+        color: #d5e9da;
+        font: 16px system-ui;
+        max-width: 850px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      button {
+        padding: 16px;
+        background: #9ce7c8;
+        border: 0;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      a {
+        color: #9ce7c8;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="./">← Crux Motion</a>
+    <h1>Camera engine checks</h1>
+    <p>
+      This checks both local inference providers on generated blank frames. No
+      webcam is opened. It verifies loading and execution, not human tracking
+      accuracy.
+    </p>
+    <button id="run">Run both providers</button>
+    <pre id="result">Ready.</pre>
+    <script type="module" src="/src/diagnostics.ts"></script>
+  </body>
+</html>

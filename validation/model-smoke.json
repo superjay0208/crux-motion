@@ -1,0 +1,34 @@
+{
+  "kind": "Real browser WASM execution on five generated blank frames per provider; not human tracking accuracy or motion-to-photon latency",
+  "url": "http://127.0.0.1:4318/diagnostics.html",
+  "reports": [
+    {
+      "provider": "paired",
+      "frames": 5,
+      "initializationAndRunMs": 979.1999999992549,
+      "inferenceMs": [
+        198.70000000018626,
+        49.39999999944121,
+        41.5,
+        47.200000000186265,
+        44
+      ],
+      "detectedHands": 0,
+      "pass": true
+    },
+    {
+      "provider": "holistic",
+      "frames": 5,
+      "initializationAndRunMs": 470.20000000018626,
+      "inferenceMs": [
+        193.40000000037253,
+        21.90000000037253,
+        18,
+        18,
+        17.399999999441206
+      ],
+      "detectedHands": 0,
+      "pass": true
+    }
+  ]
+}

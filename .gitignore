@@ -1,0 +1,16 @@
+personal-recordings/
+.analysis-tools/
+.npm-cache/
+research/upstream/
+node_modules/
+game/node_modules/
+game/test-results/
+game/playwright-report/
+game/.launcher/
+game/coverage/
+.release/
+*.log
+*.zip
+*.tsbuildinfo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,64 @@
+{
+  "kind": "archived production browser playback of authored semantic inputs before the reach-mapping follow-up; not current-build visual inspection or human webcam completion",
+  "results": [
+    {
+      "route": "Jug Ladder",
+      "pass": true
+    },
+    {
+      "route": "Cross Current",
+      "pass": true,
+      "progress": "3 / 3 holds · CROSS ✓"
+    },
+    {
+      "route": "Edge Etiquette",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Pendulum Bay",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Soft Landing",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Under the Lip",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Pinch Point",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Quiet Apex",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "First Flight",
+      "pass": true,
+      "progress": "1 / 1 holds · FLIGHT ✓"
+    },
+    {
+      "route": "Catch and Carry",
+      "pass": true,
+      "progress": "2 / 2 holds · FLIGHT ✓"
+    },
+    {
+      "route": "Crosswind",
+      "pass": true,
+      "progress": "3 / 3 holds"
+    },
+    {
+      "route": "Campus Circuit",
+      "pass": true,
+      "progress": "4 / 4 holds · FLIGHT ✓"
+    }
+  ]
+}

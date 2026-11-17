@@ -1,0 +1,52 @@
+{
+  "vendored": [
+    {
+      "repo": "casiez/OneEuroFilter",
+      "commit": "d78925584245597f2aa9c4c01a802eb0f0b77fb9",
+      "path": "typescript/src/OneEuroFilter.ts",
+      "destination": "src/vendor/one-euro/OneEuroFilter.ts",
+      "sha256": "808222afdc46e471cabe74f22179fc3a8a7bfd3bdec4c8829bff2bf4838d581d"
+    },
+    {
+      "repo": "abouchedidxcode/open-source-hands",
+      "commit": "dd79fb7b3a9d2e9868e433611e6b8737dfca3936",
+      "path": "src/kit/features.ts",
+      "destination": "src/vendor/open-source-hands/features.ts",
+      "sha256": "ac29ff9a445214291c3526f8cac0ded565eb6662ef2f78d6aa815b0f3f8c812d"
+    },
+    {
+      "repo": "abouchedidxcode/open-source-hands",
+      "commit": "dd79fb7b3a9d2e9868e433611e6b8737dfca3936",
+      "path": "src/kit/poses.ts",
+      "destination": "src/vendor/open-source-hands/poses.ts",
+      "sha256": "b6bc107cc1dc59491b8499a6f7758df4fec80d93f61e41f3df1230d13e5b0052"
+    },
+    {
+      "repo": "abouchedidxcode/open-source-hands",
+      "commit": "dd79fb7b3a9d2e9868e433611e6b8737dfca3936",
+      "path": "src/kit/types.ts",
+      "destination": "src/vendor/open-source-hands/types.ts",
+      "sha256": "875394da3ff4c9a34641d7f0ee40b67e782c57f203bb93837f698fc6ab945964"
+    }
+  ],
+  "adapted": [
+    {
+      "repo": "Another-Axiom/GorillaLocomotion",
+      "commit": "bc42e959cf3e69178f9147d89bd3ffeab1c432c4",
+      "source": "Player.cs: inverse planted-hand correction and multi-hand averaging",
+      "destination": "src/vendor/climbing/HandAnchors.ts"
+    },
+    {
+      "repo": "GodotVR/godot-xr-tools",
+      "commit": "6c6189bdfcdf855052ef1aeb9f3e0ec4c7a7eb60",
+      "source": "velocity_averager_linear.gd: distance/time history; movement_climb.gd: release velocity",
+      "destination": "src/vendor/climbing/HandAnchors.ts"
+    },
+    {
+      "repo": "abouchedidxcode/open-source-hands",
+      "commit": "dd79fb7b3a9d2e9868e433611e6b8737dfca3936",
+      "source": "src/kit/tracker.ts: GPU-first initialization and CPU fallback lifecycle",
+      "destination": "src/tracking/inference.worker.ts"
+    }
+  ]
+}

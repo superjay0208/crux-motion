@@ -1,0 +1,10 @@
+import {readFile,readdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+const root=resolve(import.meta.dirname,'../../personal-recordings');
+const names=(await readdir(root)).sort();
+const folder=resolve(root,process.argv[2]??names.at(-1));
+const d=JSON.parse(await readFile(resolve(folder,'telemetry.json'),'utf8'));
+const slim=f=>({time:+f.time.toFixed(3),tick:f.tick,state:f.state,pause:f.pauseReason,body:f.body,hands:Object.fromEntries(Object.entries(f.hands).map(([s,h])=>[s,{grip:h.grip,candidate:h.candidate,quality:h.tracked,contact:h.contact,aimError:h.aimError,reach:h.reach,physicalReach:h.physicalReach,nearFrameEdge:h.nearFrameEdge,arm:h.arm}]))});
+const result={build:d.build,scenario:d.scenario,provider:d.provider,summary:d.analysis,encoderDelay:d.encoderStartDelayMs,frames:d.frames.length,mode:d.frames.find(f=>f.armControl)?.armControl,states:d.frames.filter((f,i,a)=>f.state!==a[i-1]?.state).map(f=>({time:f.time,state:f.state,pause:f.pauseReason})),events:d.frames.flatMap(f=>f.events.map(e=>({time:f.time,...e}))),samples:[0,15,18,22,28,35,45,55].filter(t=>t<d.analysis.duration).map(t=>slim(d.frames.reduce((a,b)=>Math.abs(a.time-t)<Math.abs(b.time-t)?a:b)))};
+await writeFile(resolve(folder,'inspection-summary.json'),JSON.stringify(result,null,2));
+console.log(JSON.stringify(result,null,2));
