@@ -129,12 +129,38 @@ let index = deepLinkRoute ?? 0,
 let last = performance.now(),
   accumulator = 0,
   hitStopRemaining = 0,
+  currentTimeScale = 1,
+  dynoFocusRemaining = 0,
+  dynoFocusCooldown = 0,
+  prevDynoReadyForFocus = false,
+  apexFocusUsed = 0,
+  wasDynoLaunch = false,
+  lastKnownDynoVector = v(),
+  lastCatchCountForFocus = 0,
+  recentHeldHolds: Record<Hand, string | null> = { left: null, right: null },
+  launchHoldIds = new Set<string>(),
   lastHud = 0,
   lastDynoReady = false,
   lastState = "",
   lastSeen = 0,
   lastCheckpoint = 0,
   seenVisited = 0;
+function resetDynoFocusState() {
+  currentTimeScale = 1;
+  dynoFocusRemaining = 0;
+  dynoFocusCooldown = 0;
+  prevDynoReadyForFocus = sim.dynoReady;
+  apexFocusUsed = 0;
+  wasDynoLaunch = sim.dynoLaunch;
+  lastKnownDynoVector = v();
+  lastCatchCountForFocus = sim.catchCount;
+  recentHeldHolds = {
+    left: sim.contacts.left?.hold.id ?? null,
+    right: sim.contacts.right?.hold.id ?? null,
+  };
+  launchHoldIds = new Set<string>();
+  renderer.dynoFocus = 0;
+}
 let calibrationStep = 0,
   calibrating = false,
   calibrationSamples: Features[] = [],
@@ -217,6 +243,7 @@ type Save = {
   assisted?: boolean;
   ghost?: boolean;
   practiceAnchors?: boolean;
+  dynoSlowMo?: boolean;
 };
 type GhostFrame = {
   t: number;
@@ -284,6 +311,7 @@ let save: Save = {
   assisted: false,
   ghost: true,
   practiceAnchors: false,
+  dynoSlowMo: true,
 };
 try {
   const x = JSON.parse(localStorage.getItem("crux-motion:v1") || "null");
@@ -394,6 +422,7 @@ function setIntroStaticPose(routeIdx: number) {
   lastState = "";
   renderer.ghost = null;
   renderer.reset();
+  resetDynoFocusState();
   accumulator = 0;
   hitStopRemaining = 0;
   canvas.dataset.demoTick = "0";
@@ -434,6 +463,7 @@ async function playIntroRouteByIndex(routeIdx: number, gen: number) {
     lastState = "";
     renderer.ghost = null;
     renderer.reset();
+    resetDynoFocusState();
     accumulator = 0;
     hitStopRemaining = 0;
     canvas.dataset.demoTick = "0";
@@ -507,6 +537,7 @@ function loadRoute(i: number) {
   bestGhost = loadGhost(routes[i].id);
   renderer.ghost = null;
   renderer.reset();
+  resetDynoFocusState();
   audio.reset();
   inputProtection.reset();
   accumulator = 0;
@@ -577,14 +608,13 @@ camera.onInput = (input) => {
   if (review) return;
   const protectedInput = inputProtection.accept(input, performance.now());
   inputs = protectedInput.input;
-  if (
-    (protectedInput.pause || hands.some((side) => camera.frameEdge[side])) &&
-    sim.state === "playing"
-  ) {
+  const activeDyno =
+    sim.dynoCharge > 0.28 || sim.dynoReady || sim.flight > 0;
+  const edgePause =
+    !activeDyno && hands.some((side) => camera.frameEdge[side]);
+  if ((protectedInput.pause || edgePause) && sim.state === "playing") {
     recoverCamera(
-      hands.some((side) => camera.frameEdge[side])
-        ? "Hand near the image edge"
-        : "Hand tracking interrupted",
+      edgePause ? "Hand near the image edge" : "Hand tracking interrupted",
     );
   }
 };
@@ -660,7 +690,7 @@ function drawTracking() {
     (recoveryGate.active || sim.state === "ready" || sim.state === "paused") &&
     !calibrating
   ) {
-    c.strokeStyle = "#d2f8c9dd";
+    c.strokeStyle = "#5be09bdd";
     c.lineWidth = Math.max(2, o.width / 320);
     c.setLineDash([12, 8]);
     c.strokeRect(
@@ -670,7 +700,7 @@ function drawTracking() {
       o.height * 0.55,
     );
     c.setLineDash([]);
-    c.fillStyle = "#d2f8c9";
+    c.fillStyle = "#f4efe6";
     c.font = `600 ${Math.max(16, o.width / 50)}px sans-serif`;
     c.fillText("RETURN HANDS HERE", o.width * 0.17, o.height * 0.27 - 10);
   }
@@ -685,7 +715,7 @@ function drawTracking() {
     if (o.pose[a] && o.pose[b]) {
       const A = point(o.pose[a]),
         B = point(o.pose[b]);
-      c.strokeStyle = "#a4e6d088";
+      c.strokeStyle = sim.dynoReady ? "#eb9c28cc" : "#5be09b99";
       c.beginPath();
       c.moveTo(A.x, A.y);
       c.lineTo(B.x, B.y);
@@ -695,7 +725,7 @@ function drawTracking() {
   for (const side of hands) {
     const d = camera.assigned[side];
     if (!d) continue;
-    c.strokeStyle = side === "left" ? "#8ae2c7" : "#f3ba77";
+    c.strokeStyle = side === "left" ? "#4d8ef7" : "#f2a93b";
     for (const base of [1, 5, 9, 13, 17]) {
       c.beginPath();
       const p = point(d.points[0]);
@@ -710,6 +740,37 @@ function drawTracking() {
     c.fillStyle = c.strokeStyle;
     c.font = "bold 28px sans-serif";
     c.fillText(side === "left" ? "L" : "R", p.x + 12, p.y);
+  }
+  if (
+    mode === "camera" &&
+    sim.state === "playing" &&
+    sim.dynoReady &&
+    !calibrating
+  ) {
+    c.save();
+    c.strokeStyle = "#eb9c28dd";
+    c.lineWidth = Math.max(3, o.width / 180);
+    c.strokeRect(2, 2, Math.max(0, o.width - 4), Math.max(0, o.height - 4));
+    const fontSize = Math.max(15, Math.round(o.width / 34));
+    c.font = `700 ${fontSize}px "BarlowCondensed", "Fredoka", sans-serif`;
+    const callout = "DYNO READY — OPEN BOTH HANDS!";
+    const padX = Math.round(fontSize * 0.85);
+    const boxW = Math.min(o.width - 16, c.measureText(callout).width + padX * 2);
+    const boxH = Math.round(fontSize * 1.75);
+    const bx = (o.width - boxW) * 0.5;
+    const by = Math.max(10, Math.round(o.height * 0.04));
+    c.fillStyle = "rgba(24, 21, 18, 0.92)";
+    c.strokeStyle = "#ffd175";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(bx, by, boxW, boxH, boxH * 0.5);
+    c.fill();
+    c.stroke();
+    c.fillStyle = "#ffd175";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(callout, o.width * 0.5, by + boxH * 0.52);
+    c.restore();
   }
 }
 function calibrate() {
@@ -1502,6 +1563,7 @@ function playReplay(recorded: Replay) {
   lastState = "";
   renderer.ghost = null;
   renderer.reset();
+  resetDynoFocusState();
   audio.reset();
   accumulator = 0;
   hitStopRemaining = 0;
@@ -1509,7 +1571,7 @@ function playReplay(recorded: Replay) {
 }
 function settings() {
   showModal(
-    `<div class="eyebrow">MAKE IT YOURS</div><h2>A comfortable reach.</h2><div class="setting-row"><span>Sound effects</span><button id="sound-toggle">${save.muted ? "Off" : "On"}</button></div><div class="setting-row"><span>Reduced decorative motion</span><button id="motion-toggle">${save.reduced ? "On" : "Off"}</button></div><div class="setting-row"><span>Assisted climb (aim + grip forgiveness)</span><button id="assisted-toggle">${save.assisted ? "On" : "Off"}</button></div><div class="setting-row"><span>Personal best ghost</span><button id="ghost-toggle">${save.ghost !== false ? "On" : "Off"}</button></div><div class="setting-row"><label for="practice-physics">Practice physics</label><select id="practice-physics"><option value="motors">Joint motors · classic</option><option value="anchors">Hand anchors · swing</option></select></div><div class="setting-row"><label for="provider">Camera provider</label><select id="provider"><option value="paired">Pose + hands</option><option value="holistic">Holistic</option></select></div><div class="setting-row"><label for="device">Camera</label><select id="device"><option value="">System default</option></select></div><button class="secondary" id="restart-camera">Apply camera settings ↗</button><button class="secondary" id="practice-mode">Practice controls →</button><button class="secondary" id="download-replay">Save semantic replay ↓</button><p class="fine-print">Camera processing stays local. GPU acceleration falls back to CPU when unavailable. Replays contain controls, never camera video. Changing climbing controls restarts the route.</p>`,
+    `<div class="eyebrow">MAKE IT YOURS</div><h2>A comfortable reach.</h2><div class="setting-row"><span>Sound effects</span><button id="sound-toggle">${save.muted ? "Off" : "On"}</button></div><div class="setting-row"><span>Reduced decorative motion</span><button id="motion-toggle">${save.reduced ? "On" : "Off"}</button></div><div class="setting-row"><span>Assisted climb (aim + grip forgiveness)</span><button id="assisted-toggle">${save.assisted ? "On" : "Off"}</button></div><div class="setting-row"><span>Personal best ghost</span><button id="ghost-toggle">${save.ghost !== false ? "On" : "Off"}</button></div><div class="setting-row"><span>Dyno focus slow-mo</span><button id="dyno-slowmo-toggle">${save.dynoSlowMo !== false ? "On" : "Off"}</button></div><div class="setting-row"><label for="practice-physics">Practice physics</label><select id="practice-physics"><option value="motors">Joint motors · classic</option><option value="anchors">Hand anchors · swing</option></select></div><div class="setting-row"><label for="provider">Camera provider</label><select id="provider"><option value="paired">Pose + hands</option><option value="holistic">Holistic</option></select></div><div class="setting-row"><label for="device">Camera</label><select id="device"><option value="">System default</option></select></div><button class="secondary" id="restart-camera">Apply camera settings ↗</button><button class="secondary" id="practice-mode">Practice controls →</button><button class="secondary" id="download-replay">Save semantic replay ↓</button><p class="fine-print">Camera processing stays local. GPU acceleration falls back to CPU when unavailable. Replays contain controls, never camera video. Changing climbing controls restarts the route.</p>`,
   );
   const practicePhysics = el<HTMLSelectElement>("practice-physics");
   practicePhysics.value = save.practiceAnchors ? "anchors" : "motors";
@@ -1535,9 +1597,20 @@ function settings() {
     persist();
     el("ghost-toggle").textContent = save.ghost !== false ? "On" : "Off";
   };
+  el("dyno-slowmo-toggle").onclick = () => {
+    save.dynoSlowMo = save.dynoSlowMo === false ? true : false;
+    if (save.dynoSlowMo === false) {
+      dynoFocusRemaining = 0;
+      currentTimeScale = 1;
+      renderer.dynoFocus = 0;
+    }
+    persist();
+    el("dyno-slowmo-toggle").textContent =
+      save.dynoSlowMo !== false ? "On" : "Off";
+  };
   const reachRow = document.createElement("div");
   reachRow.className = "setting-row";
-  reachRow.innerHTML = `<label for="motion-gain">Comfortable movement range</label><select id="motion-gain"><option value="1.2">Wide movements</option><option value="1.8">Compact · recommended</option><option value="2.2">Small movements</option><option value="2.5">Very small movements</option></select>`;
+  reachRow.innerHTML = `<label for="motion-gain">Comfortable movement range</label><select id="motion-gain"><option value="1.5">Wide movements</option><option value="2.1">Compact · recommended</option><option value="2.4">Small movements</option><option value="2.8">Very small movements</option></select>`;
   el("restart-camera").before(reachRow);
   const armRow = document.createElement("div");
   armRow.className = "setting-row";
@@ -1570,8 +1643,8 @@ function settings() {
     camera.save();
   };
   const gainSelect = el<HTMLSelectElement>("motion-gain");
-  const currentGain = camera.calibration.comfortGain ?? 1.8;
-  const closestGain = [1.2, 1.8, 2.2, 2.5].sort(
+  const currentGain = camera.calibration.comfortGain ?? 2.1;
+  const closestGain = [1.5, 2.1, 2.4, 2.8].sort(
     (a, b) => Math.abs(a - currentGain) - Math.abs(b - currentGain),
   )[0];
   gainSelect.value = String(closestGain);
@@ -2021,6 +2094,7 @@ function startReview() {
   hitStopRemaining = 0;
   renderer.ghost = null;
   renderer.reset();
+  resetDynoFocusState();
   audio.reset();
   lastState = "";
   updateLabels();
@@ -2055,6 +2129,7 @@ function checkpoint() {
   hitStopRemaining = 0;
   renderer.ghost = null;
   renderer.reset();
+  resetDynoFocusState();
   audio.reset();
   lastState = "";
 }
@@ -2244,6 +2319,10 @@ function hud() {
   const gestureBarsEl = el("gesture-bars");
   const showGestureBars = mode === "camera" || lab;
   gestureBarsEl.classList.toggle("hidden", !showGestureBars);
+  const activeMaxAge =
+    sim.dynoCharge > 0.28 || sim.dynoReady || sim.flight > 0
+      ? Math.max(camera.maxFrameAgeMs, 850)
+      : camera.maxFrameAgeMs;
   if (showGestureBars) {
     const meterSide: Hand =
       !sim.contacts.left && sim.contacts.right
@@ -2255,7 +2334,7 @@ function hud() {
       mode === "camera" &&
       !isReview &&
       !!camera.observation &&
-      performance.now() - camera.observation.t <= camera.maxFrameAgeMs;
+      performance.now() - camera.observation.t <= activeMaxAge;
     const activeClass =
       mode === "camera" && !isReview
         ? freshCam
@@ -2303,7 +2382,7 @@ function hud() {
     const liveCamera = mode === "camera" && !isReview;
     const fresh =
       !!camera.observation &&
-      performance.now() - camera.observation.t <= camera.maxFrameAgeMs;
+      performance.now() - camera.observation.t <= activeMaxAge;
     const shownGrip = liveCamera
       ? fresh
         ? camera.grips[side]
@@ -2344,7 +2423,7 @@ function hud() {
   if (mode === "camera" && camera.ready && !calibrating) {
     const fresh =
       !!camera.observation &&
-      performance.now() - camera.observation.t <= camera.maxFrameAgeMs;
+      performance.now() - camera.observation.t <= activeMaxAge;
     const tracked =
       hands.every((s) => camera.currentInput?.[s].quality) && fresh;
     el("camera-status").textContent =
@@ -2378,6 +2457,19 @@ let wasSwaying = false;
 let ghostStride = 8;
 const approachScalar = (cur: number, goal: number, maxStep: number) =>
   cur + clamp(goal - cur, -maxStep, maxStep);
+function nearAirborneCatchHold(): boolean {
+  for (const side of hands) {
+    const aim = sim.rig.aim(side, inputs);
+    for (const h of sim.route.holds) {
+      if (sim.route.start.includes(h.id) || launchHoldIds.has(h.id)) continue;
+      const patch = h.match
+        ? add(h.p, v(side === "left" ? -0.09 : 0.09, 0))
+        : h.p;
+      if (Math.min(dist(aim, h.p), dist(aim, patch)) <= 0.3) return true;
+    }
+  }
+  return false;
+}
 function frame(t: number) {
   if (mode === "intro" && document.hidden) {
     last = t;
@@ -2390,11 +2482,15 @@ function frame(t: number) {
   }
   const dt = Math.min((t - last) / 1000, 0.1);
   last = t;
+  const maxAge =
+    sim.dynoCharge > 0.28 || sim.dynoReady || sim.flight > 0
+      ? Math.max(camera.maxFrameAgeMs, 850)
+      : camera.maxFrameAgeMs;
   if (
     mode === "camera" &&
     !review &&
     sim.state === "playing" &&
-    (!camera.observation || t - camera.observation.t > camera.maxFrameAgeMs)
+    (!camera.observation || t - camera.observation.t > maxAge)
   ) {
     recoverCamera("Camera frames delayed");
   }
@@ -2469,10 +2565,62 @@ function frame(t: number) {
   updateCalibration(t);
   updateCameraStart(t);
   if (mode !== "intro" && !review) sim.setInput(inputs);
+  const liveFocusAllowed =
+    (mode === "camera" || mode === "practice") &&
+    !review &&
+    !isReview &&
+    sim.state === "playing" &&
+    !save.reduced &&
+    save.dynoSlowMo !== false;
+  let stepTimeScale = 1;
+  if (!liveFocusAllowed) {
+    dynoFocusRemaining = 0;
+    currentTimeScale = 1;
+    renderer.dynoFocus = 0;
+    if (mode === "intro" || review || isReview || sim.state !== "playing") {
+      prevDynoReadyForFocus = sim.dynoReady;
+    }
+  } else {
+    if (dynoFocusCooldown > 0) {
+      dynoFocusCooldown = Math.max(0, dynoFocusCooldown - dt);
+    }
+    if (dynoFocusRemaining > 0) {
+      if (!sim.dynoReady || (!sim.contacts.left && !sim.contacts.right)) {
+        dynoFocusRemaining = 0;
+        dynoFocusCooldown = 1.1;
+      } else {
+        dynoFocusRemaining = Math.max(0, dynoFocusRemaining - dt);
+        if (dynoFocusRemaining <= 0) {
+          dynoFocusRemaining = 0;
+          dynoFocusCooldown = 1.1;
+        }
+      }
+    }
+    if (
+      dynoFocusRemaining > 0 &&
+      sim.dynoReady &&
+      (sim.contacts.left || sim.contacts.right)
+    ) {
+      const bothReleasingNow =
+        inputs.left.grip === "release" && inputs.right.grip === "release";
+      stepTimeScale = bothReleasingNow ? 1 : 0.38;
+    } else if (
+      !sim.contacts.left &&
+      !sim.contacts.right &&
+      sim.dynoLaunch &&
+      sim.flight >= 0.05 &&
+      Math.abs(sim.rig.velocity().y) < 0.9 &&
+      apexFocusUsed < 0.26 &&
+      nearAirborneCatchHold()
+    ) {
+      apexFocusUsed += dt;
+      stepTimeScale = 0.54;
+    }
+  }
   if (hitStopRemaining > 0) {
     hitStopRemaining = Math.max(0, hitStopRemaining - dt);
   } else {
-    accumulator += dt;
+    accumulator += dt * stepTimeScale;
     while (accumulator >= sim.dt) {
       if (mode === "intro" && introReplay && !save.reduced) {
         if (sim.state === "playing" && sim.tick < introReplay.duration) {
@@ -2505,7 +2653,65 @@ function frame(t: number) {
         recordGhostKeyframe();
         lastGhostTick = 0;
       }
+      if (sim.contacts.left) recentHeldHolds.left = sim.contacts.left.hold.id;
+      if (sim.contacts.right)
+        recentHeldHolds.right = sim.contacts.right.hold.id;
+      const preDynoVec =
+        sim.dynoVector.y > 0 || Math.abs(sim.dynoVector.x) > 0
+          ? { ...sim.dynoVector }
+          : lastKnownDynoVector;
+      if (sim.dynoVector.y > 0 || Math.abs(sim.dynoVector.x) > 0) {
+        lastKnownDynoVector = { ...sim.dynoVector };
+      }
       sim.step();
+      if (sim.catchCount > lastCatchCountForFocus) {
+        lastCatchCountForFocus = sim.catchCount;
+        dynoFocusCooldown = 0;
+        apexFocusUsed = 0;
+      }
+      if (!wasDynoLaunch && sim.dynoLaunch) {
+        apexFocusUsed = 0;
+        launchHoldIds = new Set(
+          [recentHeldHolds.left, recentHeldHolds.right].filter(
+            (id): id is string => !!id,
+          ),
+        );
+        if (mode === "camera" && !review && !isReview) {
+          const flightVec =
+            sim.dynoVector.y > 0.8
+              ? sim.dynoVector
+              : preDynoVec.y > 0.8
+                ? preDynoVec
+                : sim.rig.velocity();
+          camera.assistDynoFlight(flightVec);
+        }
+      }
+      wasDynoLaunch = sim.dynoLaunch;
+      const stepFocusAllowed =
+        (mode === "camera" || mode === "practice") &&
+        !review &&
+        !isReview &&
+        sim.state === "playing" &&
+        !save.reduced &&
+        save.dynoSlowMo !== false;
+      if (stepFocusAllowed) {
+        if (
+          !prevDynoReadyForFocus &&
+          sim.dynoReady &&
+          (sim.contacts.left || sim.contacts.right) &&
+          dynoFocusCooldown <= 0
+        ) {
+          dynoFocusRemaining = 0.62;
+          audio.playDynoFocus();
+        } else if (
+          dynoFocusRemaining > 0 &&
+          (!sim.dynoReady || (!sim.contacts.left && !sim.contacts.right))
+        ) {
+          dynoFocusRemaining = 0;
+          dynoFocusCooldown = 1.1;
+        }
+      }
+      prevDynoReadyForFocus = sim.dynoReady;
       if (
         sim.state === "playing" &&
         mode !== "intro" &&
@@ -2526,6 +2732,39 @@ function frame(t: number) {
       }
       accumulator -= sim.dt;
     }
+  }
+  const postFocusAllowed =
+    (mode === "camera" || mode === "practice") &&
+    !review &&
+    !isReview &&
+    sim.state === "playing" &&
+    !save.reduced &&
+    save.dynoSlowMo !== false;
+  if (!postFocusAllowed) {
+    dynoFocusRemaining = 0;
+    currentTimeScale = 1;
+    renderer.dynoFocus = 0;
+  } else if (
+    dynoFocusRemaining > 0 &&
+    sim.dynoReady &&
+    (sim.contacts.left || sim.contacts.right)
+  ) {
+    currentTimeScale = 0.38;
+    renderer.dynoFocus = clamp(dynoFocusRemaining / 0.62, 0.38, 1);
+  } else if (
+    !sim.contacts.left &&
+    !sim.contacts.right &&
+    sim.dynoLaunch &&
+    sim.flight >= 0.05 &&
+    Math.abs(sim.rig.velocity().y) < 0.9 &&
+    apexFocusUsed < 0.26 &&
+    nearAirborneCatchHold()
+  ) {
+    currentTimeScale = 0.54;
+    renderer.dynoFocus = clamp(1 - apexFocusUsed / 0.26, 0.3, 0.72);
+  } else {
+    currentTimeScale = 1;
+    renderer.dynoFocus = 0;
   }
   if (mode === "intro" && introReplay && !save.reduced) {
     if (canvas.dataset.demoTick !== String(sim.tick)) {
@@ -2623,11 +2862,17 @@ Object.defineProperty(window, "cruxMotion", {
     get dynoReady() {
       return sim.dynoReady;
     },
+    get dynoWindowRemaining() {
+      return sim.dynoWindowRemaining;
+    },
     get dynoSource() {
       return sim.dynoSource;
     },
     get dynoLaunch() {
       return sim.dynoLaunch;
+    },
+    get timeScale() {
+      return currentTimeScale;
     },
     get delegate() {
       return camera.delegate;

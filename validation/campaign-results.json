@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T05:35:34.791Z",
+  "generatedAt": "2026-11-18T07:00:11.814Z",
   "kind": "synthetic semantic controls through real physics; not real-camera validation",
   "results": [
     {
@@ -147,10 +147,10 @@
       "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9666613336281811,
-        "right": 0.9648381158660605
+        "left": 0.9662007805416497,
+        "right": 0.9644633311616169
       },
-      "overallReserve": 0.9700456767561288,
+      "overallReserve": 0.969464623057618,
       "config": {
         "controller": "anchors"
       },
@@ -213,10 +213,10 @@
       "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9519333460040903,
-        "right": 0.9521820826636629
+        "left": 0.9519234050503838,
+        "right": 0.9521784448102993
       },
-      "overallReserve": 0.9420562931232167,
+      "overallReserve": 0.942020432484923,
       "config": {
         "controller": "anchors"
       },
@@ -257,10 +257,10 @@
       "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.924712043203702,
-        "right": 0.9198012568856021
+        "left": 0.9241255777303313,
+        "right": 0.9193212616921294
       },
-      "overallReserve": 0.9526781820517224,
+      "overallReserve": 0.9520305182740255,
       "config": {
         "controller": "anchors"
       },

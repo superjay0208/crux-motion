@@ -114,6 +114,7 @@ export class Renderer {
     typeof matchMedia === "function" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
   ghost: { torso: V; angle: number; left: V; right: V; legs?: V } | null = null;
+  dynoFocus = 0;
   impactFrame: {
     timer: number;
     duration: number;
@@ -187,6 +188,7 @@ export class Renderer {
 
   reset() {
     this.view.reset();
+    this.dynoFocus = 0;
     this.impactFrame = null;
     this.particles = [];
     this.callouts = [];
@@ -501,6 +503,10 @@ export class Renderer {
     }
     ctx.restore();
 
+    if (this.dynoFocus > 0.02 && !this.reduced) {
+      this.drawDynoFocusOverlay(s);
+    }
+
     ctx.font = '600 10px "BarlowCondensed", "Fredoka", sans-serif';
     ctx.fillStyle = "rgba(244, 239, 230, 0.36)";
     ctx.textAlign = "right";
@@ -610,24 +616,76 @@ export class Renderer {
     c.restore();
   }
 
+  private drawDynoFocusOverlay(s: Simulation) {
+    const c = this.ctx,
+      focus = clamp(this.dynoFocus, 0, 1),
+      cp = this.toScreen(s.rig.com()),
+      maxR = Math.max(this.w, this.h) * 0.78;
+
+    c.save();
+    const rim = c.createRadialGradient(
+      cp.x,
+      cp.y,
+      Math.min(this.w, this.h) * 0.18,
+      this.w * 0.5,
+      this.h * 0.5,
+      maxR,
+    );
+    rim.addColorStop(0, "rgba(235, 156, 40, 0)");
+    rim.addColorStop(0.62, `rgba(235, 156, 40, ${(0.075 * focus).toFixed(3)})`);
+    rim.addColorStop(1, `rgba(235, 156, 40, ${(0.2 * focus).toFixed(3)})`);
+    c.fillStyle = rim;
+    c.fillRect(0, 0, this.w, this.h);
+
+    c.strokeStyle = `rgba(255, 209, 117, ${(0.34 * focus).toFixed(3)})`;
+    c.lineWidth = 2.5;
+    c.strokeRect(2, 2, Math.max(0, this.w - 4), Math.max(0, this.h - 4));
+
+    if (!s.contacts.left && !s.contacts.right && s.flight > 0) {
+      const pulseR = (0.28 + 0.03 * Math.sin(s.tick * 0.3)) * this.scale;
+      c.strokeStyle = `rgba(255, 209, 117, ${(0.42 * focus).toFixed(3)})`;
+      c.lineWidth = 2.2;
+      c.setLineDash([6, 5]);
+      c.beginPath();
+      c.arc(cp.x, cp.y, pulseR, 0, Math.PI * 2);
+      c.stroke();
+      c.setLineDash([]);
+    }
+    c.restore();
+  }
+
   private drawDynoPreview(s: Simulation, showIntent: boolean) {
-    if (!showIntent || !s.contacts.left || !s.contacts.right) return;
+    if (!showIntent || (!s.contacts.left && !s.contacts.right)) return;
     if (
-      (s.contacts.left.age ?? 1) < 0.22 ||
-      (s.contacts.right.age ?? 1) < 0.22 ||
-      (this.impactFrame &&
-        this.impactFrame.timer > 0 &&
-        this.impactFrame.kind !== "launch")
+      this.impactFrame &&
+      this.impactFrame.timer > 0 &&
+      this.impactFrame.kind !== "launch"
     )
       return;
     const dyn = s as unknown as {
       dynoCharge?: number;
       dynoReady?: boolean;
+      dynoWindowRemaining?: number;
       dynoVector?: V;
     };
+    const dynoReady = !!dyn.dynoReady;
+    if (
+      !dynoReady &&
+      (!s.contacts.left ||
+        !s.contacts.right ||
+        (s.contacts.left.age ?? 1) < 0.22 ||
+        (s.contacts.right.age ?? 1) < 0.22)
+    )
+      return;
     const charge = clamp(Number(dyn.dynoCharge ?? 0), 0, 1);
     if (charge <= 0.12) return;
-    const dynoReady = !!dyn.dynoReady;
+    const windowRem = clamp(
+      Number(dyn.dynoWindowRemaining ?? (dynoReady ? 1 : 0)),
+      0,
+      1,
+    );
+    const focusActive = this.dynoFocus > 0.02 && !this.reduced;
+    const focusAmt = focusActive ? clamp(this.dynoFocus, 0, 1) : 0;
     const dynoVec = dyn.dynoVector;
     const c = this.ctx,
       com = s.rig.com(),
@@ -642,6 +700,18 @@ export class Renderer {
         : "#37c47b";
 
     c.save();
+    if (focusActive && dynoReady) {
+      const coilR = arcR + (11 + 3.5 * Math.sin(s.tick * 0.28));
+      const coilAlpha = (0.22 + 0.16 * Math.sin(s.tick * 0.28)) * focusAmt;
+      c.strokeStyle = `rgba(255, 209, 117, ${coilAlpha.toFixed(3)})`;
+      c.lineWidth = 2.4;
+      c.setLineDash([8, 5]);
+      c.beginPath();
+      c.arc(cp.x, cp.y, coilR, 0, Math.PI * 2);
+      c.stroke();
+      c.setLineDash([]);
+    }
+
     c.strokeStyle = "rgba(244, 239, 230, 0.14)";
     c.lineWidth = 3;
     c.lineCap = "round";
@@ -650,9 +720,10 @@ export class Renderer {
     c.stroke();
 
     if (dynoReady && !this.reduced) {
-      const pulse = 0.28 + 0.14 * Math.sin(s.tick * 0.25);
+      const pulse =
+        (focusActive ? 0.36 : 0.28) + 0.14 * Math.sin(s.tick * 0.25);
       c.strokeStyle = `rgba(235, 156, 40, ${pulse.toFixed(2)})`;
-      c.lineWidth = 6.5;
+      c.lineWidth = focusActive ? 7.5 : 6.5;
       c.beginPath();
       c.arc(cp.x, cp.y, arcR, startA, startA + spanA * charge);
       c.stroke();
@@ -664,14 +735,29 @@ export class Renderer {
     c.arc(cp.x, cp.y, arcR, startA, startA + spanA * charge);
     c.stroke();
 
+    if (dynoReady && windowRem > 0.01) {
+      const winR = arcR + 6;
+      c.strokeStyle = "rgba(244, 239, 230, 0.12)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(cp.x, cp.y, winR, startA, startA + spanA);
+      c.stroke();
+
+      c.strokeStyle = windowRem > 0.35 ? "#5be09b" : "#eb9c28";
+      c.lineWidth = 2.4;
+      c.beginPath();
+      c.arc(cp.x, cp.y, winR, startA, startA + spanA * windowRem);
+      c.stroke();
+    }
+
     if (dynoReady) {
       const ly = cp.y - 0.78 * this.scale;
       c.font = '700 10.5px "BarlowCondensed", "Fredoka", sans-serif';
-      const label = "DYNO READY!",
+      const label = focusActive ? "DYNO FOCUS · OPEN HANDS!" : "DYNO READY!",
         tw = c.measureText(label).width + 18;
-      c.fillStyle = "rgba(24, 21, 18, 0.92)";
-      c.strokeStyle = "#ffd175";
-      c.lineWidth = 1.4;
+      c.fillStyle = "rgba(24, 21, 18, 0.94)";
+      c.strokeStyle = focusActive ? "#eb9c28" : "#ffd175";
+      c.lineWidth = focusActive ? 1.8 : 1.4;
       c.beginPath();
       c.roundRect(cp.x - tw / 2, ly - 9.5, tw, 19, 9.5);
       c.fill();
@@ -698,8 +784,10 @@ export class Renderer {
           ),
         );
       }
-      c.strokeStyle = "rgba(255, 209, 117, 0.34)";
-      c.lineWidth = 1.6;
+      c.strokeStyle = focusActive
+        ? "rgba(255, 223, 148, 0.6)"
+        : "rgba(255, 209, 117, 0.34)";
+      c.lineWidth = focusActive ? 2.1 : 1.6;
       c.setLineDash([3, 4]);
       c.beginPath();
       c.moveTo(cp.x, cp.y);
@@ -707,31 +795,33 @@ export class Renderer {
       c.stroke();
       c.setLineDash([]);
 
-      c.fillStyle = "rgba(235, 156, 40, 0.24)";
+      c.fillStyle = focusActive
+        ? "rgba(235, 156, 40, 0.38)"
+        : "rgba(235, 156, 40, 0.24)";
       c.beginPath();
       for (let i = 0; i < pts.length; i++) {
         const pt = pts[i],
-          gr = 5.8 - i * 0.35;
+          gr = (focusActive ? 6.8 : 5.8) - i * 0.35;
         c.moveTo(pt.x + gr, pt.y);
         c.arc(pt.x, pt.y, gr, 0, Math.PI * 2);
       }
       c.fill();
 
-      c.fillStyle = "#ffd175";
+      c.fillStyle = focusActive ? "#fff3cf" : "#ffd175";
       c.beginPath();
       for (let i = 0; i < pts.length; i++) {
         const pt = pts[i],
-          cr = 3.1 - i * 0.18;
+          cr = (focusActive ? 3.6 : 3.1) - i * 0.18;
         c.moveTo(pt.x + cr, pt.y);
         c.arc(pt.x, pt.y, cr, 0, Math.PI * 2);
       }
       c.fill();
 
       const lastPt = pts[pts.length - 1];
-      c.strokeStyle = "#ffd175cc";
-      c.lineWidth = 1.4;
+      c.strokeStyle = focusActive ? "#fff3cfdd" : "#ffd175cc";
+      c.lineWidth = focusActive ? 1.8 : 1.4;
       c.beginPath();
-      c.arc(lastPt.x, lastPt.y, 5.4, 0, Math.PI * 2);
+      c.arc(lastPt.x, lastPt.y, focusActive ? 6.2 : 5.4, 0, Math.PI * 2);
       c.stroke();
     }
     c.restore();

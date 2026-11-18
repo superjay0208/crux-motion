@@ -66,6 +66,9 @@ type Contact = {
   wrong: number;
   load: number;
 };
+const DYNO_RING_TICKS = 60;
+const DYNO_STAGGER_TICKS = 34;
+const COYOTE_CATCH_TICKS = 12;
 export class Simulation {
   readonly world = new World(Vec2(0, -9.81));
   readonly rig: Rig;
@@ -92,6 +95,7 @@ export class Simulation {
   apexCatchCount = 0;
   dynoCharge = 0;
   dynoReady = false;
+  dynoWindowRemaining = 0;
   dynoSource: "none" | "push" | "swing" = "none";
   dynoVector: V = v();
   dynoLaunch = false;
@@ -115,11 +119,23 @@ export class Simulation {
   };
   private dynoCatchWindow = 0;
   private dynoLaunchPower = 1;
-  private readonly scoreRing = new Float64Array(17);
-  private readonly vecXRing = new Float64Array(17);
-  private readonly vecYRing = new Float64Array(17);
-  private readonly sourceRing = new Uint8Array(17);
+  private readonly scoreRing = new Float64Array(DYNO_RING_TICKS);
+  private readonly vecXRing = new Float64Array(DYNO_RING_TICKS);
+  private readonly vecYRing = new Float64Array(DYNO_RING_TICKS);
+  private readonly sourceRing = new Uint8Array(DYNO_RING_TICKS);
   private chargeHead = 0;
+  private prevMeanOffset: V | null = null;
+  private handDrive: V = v();
+  private pendingDyno: {
+    vec: V;
+    charge: number;
+    source: "none" | "push" | "swing";
+    tick: number;
+    comY: number;
+  } | null = null;
+  private flybyHold: Partial<
+    Record<Hand, { hold: Hold; anchor: V; tick: number }>
+  > = {};
   constructor(
     public route: Route,
     readonly mode = "practice",
@@ -178,6 +194,7 @@ export class Simulation {
     this.chargeHead = 0;
     this.dynoCharge = 0;
     this.dynoReady = false;
+    this.dynoWindowRemaining = 0;
     this.dynoVector = v();
     if (!keepSource) this.dynoSource = "none";
   }
@@ -197,21 +214,36 @@ export class Simulation {
     if (this.state === "playing") {
       this.state = "paused";
       this.pauseReason = reason;
+      this.prevMeanOffset = null;
+      this.handDrive = v();
     }
   }
   release(side: Hand, cause = "Released", slip = false) {
     const c = this.contacts[side];
     if (!c) return;
+    const otherSide: Hand = side === "left" ? "right" : "left";
+    const otherAttached = !!this.contacts[otherSide];
     if (!slip) {
       this.openedHold[side] = c.hold.id;
       this.intentionalReleaseTick[side] = this.tick;
+      if (otherAttached && this.dynoCharge >= 0.72) {
+        this.pendingDyno = {
+          vec: { ...this.dynoVector },
+          charge: this.dynoCharge,
+          source: this.dynoSource,
+          tick: this.tick,
+          comY: this.rig.com().y,
+        };
+      }
     } else {
       this.intentionalReleaseTick[side] = -999;
+      this.pendingDyno = null;
       if (this.rig instanceof AnchorRig) this.slippedHold[side] = c.hold.id;
     }
+    delete this.flybyHold[side];
     this.recentReleases.push({ id: c.hold.id, tick: this.tick });
     this.recentReleases = this.recentReleases.filter(
-      (r) => this.tick - r.tick < 30,
+      (r) => this.tick - r.tick <= DYNO_STAGGER_TICKS + 6,
     );
     if (!(this.rig instanceof AnchorRig)) this.world.destroyJoint(c.joint);
     this.contacts[side] = null;
@@ -222,22 +254,44 @@ export class Simulation {
       this.dynoCatchWindow = 0;
       const simultaneous =
         !slip &&
-        this.tick - this.lastDualSupportTick <= 16 &&
+        this.tick - this.lastDualSupportTick <= DYNO_STAGGER_TICKS &&
         Math.abs(
           this.intentionalReleaseTick.left - this.intentionalReleaseTick.right,
-        ) <= 16;
-      const charged = this.dynoCharge >= 1;
-      const launchVec = { ...this.dynoVector };
-      const launchSource = this.dynoSource;
+        ) <= DYNO_STAGGER_TICKS;
+      const locked =
+        simultaneous &&
+        this.pendingDyno &&
+        this.tick - this.pendingDyno.tick <= DYNO_STAGGER_TICKS
+          ? this.pendingDyno
+          : null;
+      const effectiveCharge = locked
+        ? Math.max(locked.charge, this.dynoCharge)
+        : this.dynoCharge;
+      const launchVec = locked ? { ...locked.vec } : { ...this.dynoVector };
+      const launchSource = locked ? locked.source : this.dynoSource;
+      const sag = locked ? Math.max(0, locked.comY - this.rig.com().y) : 0;
+      this.pendingDyno = null;
       if (this.rig instanceof AnchorRig) this.rig.releaseLast(!slip);
-      if (simultaneous && charged) {
+      if (simultaneous && effectiveCharge >= 1) {
         this.dynoLaunch = true;
         this.dynoSource = launchSource;
         this.dynoLaunchPower = clamp(len(launchVec), 1, 3.5);
         if (this.rig instanceof AnchorRig) {
-          this.rig.applyLaunchVelocity(launchVec);
+          this.rig.applyLaunchVelocity(launchVec, sag);
         }
         this.clearDynoWindow(true);
+      } else if (simultaneous && effectiveCharge >= 0.72) {
+        const scale = 0.65 + 0.35 * ((effectiveCharge - 0.72) / 0.28);
+        const hopVec = mul(launchVec, scale);
+        this.dynoLaunch = effectiveCharge >= 0.85;
+        this.dynoSource = this.dynoLaunch ? launchSource : "none";
+        this.dynoLaunchPower = this.dynoLaunch
+          ? clamp(len(hopVec), 1, 3.5)
+          : 1;
+        if (this.rig instanceof AnchorRig) {
+          this.rig.applyLaunchVelocity(hopVec, sag * scale);
+        }
+        this.clearDynoWindow(this.dynoLaunch);
       } else {
         this.dynoLaunch = false;
         this.dynoLaunchPower = 1;
@@ -276,6 +330,8 @@ export class Simulation {
     const other = this.contacts[side === "left" ? "right" : "left"];
     if (other?.hold.id === hold.id && !hold.match) return;
     this.intentionalReleaseTick[side] = -999;
+    this.pendingDyno = null;
+    delete this.flybyHold[side];
     const preVel = start ? v() : this.rig.velocity();
     const dyno =
       !start &&
@@ -400,6 +456,8 @@ export class Simulation {
     )
       return;
     const other = this.contacts[side === "left" ? "right" : "left"];
+    const airborne = !this.contacts.left && !this.contacts.right;
+    const anchored = this.rig instanceof AnchorRig;
     // Overlapping visible patches resolve toward the player's requested point.
     // Actual hand/patch intersection is still mandatory below.
     const requested = this.rig.aim(side, this.input);
@@ -407,6 +465,7 @@ export class Simulation {
       (a, b) =>
         dist(a.p, requested) - dist(b.p, requested) || a.id.localeCompare(b.id),
     );
+    let recordedFlyby = false;
     for (const hold of candidates) {
       const center = hold.match
         ? add(hold.p, v(side === "left" ? -0.09 : 0.09, 0))
@@ -423,9 +482,7 @@ export class Simulation {
       if (
         this.openedHold[side] === hold.id &&
         dist(requested, center) >
-          (this.rig instanceof AnchorRig || this.input[side].arm
-            ? radius * 0.7
-            : radius + 0.1)
+          (anchored || this.input[side].arm ? radius * 0.7 : radius + 0.1)
       )
         continue;
       if (
@@ -436,18 +493,42 @@ export class Simulation {
         dist(requested, center) > radius * 0.85
       )
         continue;
+      const nonLaunchHold =
+        !this.launchHolds.has(hold.id) && !this.route.start.includes(hold.id);
+      if (
+        airborne &&
+        !nonLaunchHold &&
+        this.flybyHold[side] &&
+        this.tick - this.flybyHold[side]!.tick <= COYOTE_CATCH_TICKS
+      )
+        continue;
       const eligible = this.eligible(side, hold);
+      if (
+        airborne &&
+        nonLaunchHold &&
+        !eligible &&
+        !recordedFlyby &&
+        dist(center, point) <= radius + 0.045
+      ) {
+        const ref = dist(to, center) <= radius ? to : point;
+        const flyDelta = sub(ref, center);
+        const flyAnchor =
+          dist(ref, center) <= radius
+            ? { ...ref }
+            : add(center, mul(flyDelta, radius / (len(flyDelta) || 1)));
+        this.flybyHold[side] = { hold, anchor: flyAnchor, tick: this.tick };
+        recordedFlyby = true;
+      }
       const assist =
         this.assisted &&
         eligible &&
         dist(this.rig.shoulder(side), center) <= 0.76 + radius
           ? 0.035
           : 0;
-      if (
-        dist(center, point) > radius + 0.025 + assist ||
-        dist(to, point) > 0.08 + assist
-      )
-        continue;
+      const dynoGrace = airborne && this.dynoLaunch && nonLaunchHold ? 0.04 : 0;
+      const sweepTol = radius + 0.025 + assist + dynoGrace;
+      const endTol = (dynoGrace > 0 ? 0.11 : 0.08) + assist;
+      if (dist(center, point) > sweepTol || dist(to, point) > endTol) continue;
       if (!eligible) {
         if (this.input[side].ready)
           this.lastCause =
@@ -464,65 +545,169 @@ export class Simulation {
       this.attach(side, hold, anchor);
       return;
     }
+    const flyby = this.flybyHold[side];
+    if (flyby) {
+      const validWindow =
+        this.tick - flyby.tick <= COYOTE_CATCH_TICKS &&
+        (airborne || (this.dynoCatchWindow > 0 && !!flyby.hold.match));
+      if (!validWindow) {
+        delete this.flybyHold[side];
+        return;
+      }
+      const flyCenter = flyby.hold.match
+        ? add(flyby.hold.p, v(side === "left" ? -0.09 : 0.09, 0))
+        : flyby.hold.p;
+      const flyRadius = flyby.hold.match
+        ? flyby.hold.radius * 0.75
+        : flyby.hold.radius;
+      if (
+        this.slippedHold[side] !== flyby.hold.id &&
+        this.eligible(side, flyby.hold) &&
+        dist(to, flyCenter) <= flyRadius + (anchored ? 0.15 : 0.12)
+      ) {
+        const delta = sub(to, flyCenter);
+        const catchAnchor =
+          dist(to, flyCenter) <= flyRadius
+            ? { ...to }
+            : len(delta) > 1e-6
+              ? add(flyCenter, mul(delta, flyRadius / len(delta)))
+              : { ...flyby.anchor };
+        delete this.flybyHold[side];
+        this.attach(side, flyby.hold, catchAnchor);
+      }
+    }
   }
   private updateDynoMomentum(anchored: AnchorRig | null) {
     if (this.contacts.left && this.contacts.right) {
       this.lastDualSupportTick = this.tick;
+      this.pendingDyno = null;
+      const clampReach = (p: V) => {
+        const l = len(p);
+        return l > 0.745 ? mul(p, 0.745 / l) : p;
+      };
+      const meanOffset = anchored
+        ? anchored.meanHandOffset(this.input)
+        : mul(
+            add(
+              clampReach(this.input.left.target),
+              clampReach(this.input.right.target),
+            ),
+            0.5,
+          );
+      if (this.prevMeanOffset) {
+        const rawDx = clamp(
+          -(meanOffset.x - this.prevMeanOffset.x),
+          -0.06,
+          0.06,
+        );
+        const rawDy = clamp(
+          -(meanOffset.y - this.prevMeanOffset.y),
+          -0.06,
+          0.06,
+        );
+        const alpha = 0.16;
+        this.handDrive = v(
+          clamp(
+            this.handDrive.x + alpha * (rawDx / this.dt - this.handDrive.x),
+            -2.6,
+            2.6,
+          ),
+          clamp(
+            this.handDrive.y + alpha * (rawDy / this.dt - this.handDrive.y),
+            -2.6,
+            2.6,
+          ),
+        );
+      } else {
+        this.handDrive = v();
+      }
+      this.prevMeanOffset = meanOffset;
+
       const instVel = this.rig.velocity();
       const sampleVel = anchored ? anchored.recentLaunchVelocity : instVel;
-      const stationary = instVel.y < 0.12 && Math.abs(instVel.x) < 0.15;
-      let score = 0,
-        candX = 0,
+      const handDriveX = this.handDrive.x;
+      const handDriveY = this.handDrive.y;
+
+      if (Math.abs(instVel.x) > 0.38) {
+        for (let i = 0; i < DYNO_RING_TICKS; i++)
+          if (this.vecXRing[i] * instVel.x < -0.08) {
+            this.scoreRing[i] = 0;
+            this.vecXRing[i] = 0;
+            this.vecYRing[i] = 0;
+            this.sourceRing[i] = 0;
+          }
+      }
+      if (instVel.y < -0.8) {
+        for (let i = 0; i < DYNO_RING_TICKS; i++)
+          if (this.sourceRing[i] === 1) {
+            this.scoreRing[i] = 0;
+            this.vecXRing[i] = 0;
+            this.vecYRing[i] = 0;
+            this.sourceRing[i] = 0;
+          }
+      }
+
+      let effectiveVx = instVel.x;
+      let effectiveVy = instVel.y;
+      if (anchored) {
+        effectiveVy =
+          instVel.y > -0.05 &&
+          (instVel.y > 0.08 || sampleVel.y > 0.1 || handDriveY > 0.22)
+            ? Math.max(instVel.y, sampleVel.y * 0.92, handDriveY * 0.52)
+            : 0;
+        const dirX =
+          Math.abs(instVel.x) > 0.08
+            ? Math.sign(instVel.x)
+            : Math.abs(sampleVel.x) > 0.12 &&
+                instVel.x * sampleVel.x >= -0.005
+              ? Math.sign(sampleVel.x)
+              : Math.abs(handDriveX) > 0.25 &&
+                  instVel.x * handDriveX >= -0.005
+                ? Math.sign(handDriveX)
+                : 0;
+        if (dirX !== 0) {
+          const cInst = instVel.x * dirX > 0 ? Math.abs(instVel.x) : 0;
+          const cSample =
+            sampleVel.x * dirX > 0 ? Math.abs(sampleVel.x) * 0.92 : 0;
+          const cDrive =
+            handDriveX * dirX > 0 ? Math.abs(handDriveX) * 0.48 : 0;
+          const activeX =
+            cInst > 0.09 ||
+            (sampleVel.x * dirX > 0 && Math.abs(sampleVel.x) > 0.12) ||
+            (handDriveX * dirX > 0 && Math.abs(handDriveX) > 0.25);
+          effectiveVx = activeX ? dirX * Math.max(cInst, cSample, cDrive) : 0;
+        } else {
+          effectiveVx = 0;
+        }
+      }
+
+      const pushScore = effectiveVy > 0.11 ? effectiveVy / 0.33 : 0;
+      const swingScore =
+        Math.abs(effectiveVx) > 0.13 ? Math.abs(effectiveVx) / 0.35 : 0;
+      const score = Math.max(pushScore, swingScore);
+      let candX = 0,
         candY = 0,
         src = 0;
-      if (!stationary) {
-        const vx = anchored
-          ? instVel.x * sampleVel.x > 0
-            ? Math.sign(instVel.x) *
-              Math.min(Math.abs(instVel.x), Math.abs(sampleVel.x))
-            : 0
-          : instVel.x;
-        const vy = anchored
-          ? instVel.y > 0 && sampleVel.y > 0
-            ? Math.min(instVel.y, sampleVel.y)
-            : 0
-          : instVel.y;
-        if (Math.abs(instVel.x) > 0.2) {
-          for (let i = 0; i < 17; i++)
-            if (this.vecXRing[i] * instVel.x < -0.01) {
-              this.scoreRing[i] = 0;
-              this.vecXRing[i] = 0;
-              this.vecYRing[i] = 0;
-              this.sourceRing[i] = 0;
-            }
-        }
-        if (instVel.y < -0.25) {
-          for (let i = 0; i < 17; i++)
-            if (this.sourceRing[i] === 1) {
-              this.scoreRing[i] = 0;
-              this.vecXRing[i] = 0;
-              this.vecYRing[i] = 0;
-              this.sourceRing[i] = 0;
-            }
-        }
-        const pushScore = vy > 0.12 ? vy / 0.48 : 0;
-        const swingScore = Math.abs(vx) > 0.15 ? Math.abs(vx) / 0.5 : 0;
-        score = Math.max(pushScore, swingScore);
-        if (swingScore >= pushScore && Math.abs(vx) >= 0.45) {
-          src = 2;
-          candX = clamp(vx * 1.08, -3.6, 3.6);
-          candY = Math.max(
-            vy,
-            Math.min(2.6, Math.abs(vx) * 0.88 + Math.max(0, vy) * 0.5),
-          );
-        } else if (pushScore > swingScore && vy >= 0.45) {
+      if (score > 0) {
+        if (pushScore >= swingScore) {
           src = 1;
-          candX = clamp(vx, -3.6, 3.6);
-          candY = clamp(vy * 1.12, 0, 3.8);
-        } else if (score > 0) {
-          src = swingScore >= pushScore ? 2 : 1;
-          candX = clamp(vx, -3.6, 3.6);
-          candY = Math.max(0, vy);
+          candX = clamp(effectiveVx * 1.08, -3.6, 3.6);
+          candY = clamp(
+            Math.max(
+              effectiveVy * 1.35,
+              1.92 + Math.max(0, effectiveVy - 0.33) * 1.35,
+            ),
+            1.85,
+            3.95,
+          );
+        } else {
+          src = 2;
+          candX = clamp(effectiveVx * 1.28, -3.7, 3.7);
+          candY = clamp(
+            Math.max(effectiveVy, 1.55 + Math.abs(effectiveVx) * 0.95),
+            1.5,
+            3.35,
+          );
         }
         const sp = Math.hypot(candX, candY);
         if (sp > 4.2) {
@@ -530,20 +715,23 @@ export class Simulation {
           candY = (candY * 4.2) / sp;
         }
       }
+
       const idx = this.chargeHead;
       this.scoreRing[idx] = score;
       this.vecXRing[idx] = candX;
       this.vecYRing[idx] = candY;
       this.sourceRing[idx] = src;
-      this.chargeHead = (idx + 1) % 17;
+      this.chargeHead = (idx + 1) % DYNO_RING_TICKS;
 
       let bestScore = 0,
         bestX = 0,
         bestY = 0,
-        bestSrc = 0;
-      for (let k = 0; k < 17; k++) {
-        const i = (this.chargeHead + k) % 17;
+        bestSrc = 0,
+        latestReadyK = -1;
+      for (let k = 0; k < DYNO_RING_TICKS; k++) {
+        const i = (this.chargeHead + k) % DYNO_RING_TICKS;
         const s = this.scoreRing[i];
+        if (s >= 1) latestReadyK = k;
         if (s > 0 && s >= bestScore) {
           bestScore = s;
           bestX = this.vecXRing[i];
@@ -553,19 +741,45 @@ export class Simulation {
       }
       this.dynoCharge = clamp(bestScore, 0, 1);
       this.dynoReady = this.dynoCharge >= 1;
+      this.dynoWindowRemaining =
+        latestReadyK >= 0 ? (latestReadyK + 1) / DYNO_RING_TICKS : 0;
       this.dynoVector = bestScore > 0 ? v(bestX, bestY) : v();
       this.dynoSource =
         bestSrc === 2 ? "swing" : bestSrc === 1 ? "push" : "none";
       return;
     }
+    this.prevMeanOffset = null;
+    this.handDrive = v();
     if (this.contacts.left || this.contacts.right) {
-      if (this.tick - this.lastDualSupportTick <= 16) {
-        this.dynoReady = this.dynoCharge >= 1;
+      const elapsed = this.tick - this.lastDualSupportTick;
+      if (elapsed <= DYNO_STAGGER_TICKS) {
+        if (
+          this.pendingDyno &&
+          this.tick - this.pendingDyno.tick <= DYNO_STAGGER_TICKS
+        ) {
+          this.dynoCharge = this.pendingDyno.charge;
+          this.dynoReady = this.pendingDyno.charge >= 1;
+          this.dynoVector = { ...this.pendingDyno.vec };
+          this.dynoSource = this.pendingDyno.source;
+          this.dynoWindowRemaining = this.dynoReady
+            ? clamp(
+                (DYNO_STAGGER_TICKS - (this.tick - this.pendingDyno.tick) + 1) /
+                  DYNO_STAGGER_TICKS,
+                0,
+                1,
+              )
+            : 0;
+        } else {
+          this.dynoReady = this.dynoCharge >= 1;
+          if (!this.dynoReady) this.dynoWindowRemaining = 0;
+        }
       } else {
+        this.pendingDyno = null;
         this.clearDynoWindow(this.dynoLaunch);
       }
       return;
     }
+    this.pendingDyno = null;
     this.clearDynoWindow(this.dynoLaunch);
   }
   step() {
@@ -692,6 +906,8 @@ export class Simulation {
           this.ground,
           true,
         );
+      } else if (anchored && acquired) {
+        anchored.sync(this.input, anchors());
       }
     }
     anchored?.afterStep(this.dt);
@@ -895,6 +1111,7 @@ export class Simulation {
       flew: this.flew,
       undercling: this.undercling,
       catchCount: this.catchCount,
+      dynoWindowRemaining: this.dynoWindowRemaining,
     };
   }
 }

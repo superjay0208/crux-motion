@@ -20,7 +20,7 @@ import {
   type Grip,
   type ArmPose,
 } from "../core/types";
-import { v, dist, type V } from "../core/math";
+import { v, dist, clamp, type V } from "../core/math";
 import { ReachMapper, ComfortFrame } from "./motion";
 import { ArmMirror, armOffset, observedArm } from "./arms";
 import { PositionSignal, cameraGrip } from "./upstream";
@@ -119,6 +119,10 @@ export class Camera {
   frameEdge: Record<Hand, boolean> = { left: false, right: false };
   resetSafe = { left: false, right: false };
   positionSpeed = { left: 0, right: 0 };
+  private edgeSince: Partial<Record<Hand, number>> = {};
+  private prevShape: Partial<
+    Record<Hand, { openness: number; curl: number; t: number }>
+  > = {};
   private previousPosition: Partial<Record<Hand, { p: V; t: number }>> = {};
   private readyContinuity: Partial<Record<Hand, { grip: Grip; t: number }>> =
     {};
@@ -359,6 +363,18 @@ export class Camera {
       : raw;
     this.assigned = assigned;
     const input = {} as Inputs;
+    const handEval = {} as Record<
+      Hand,
+      {
+        poseSide: Hand;
+        d: Detection | undefined;
+        s: Landmark | undefined;
+        anchorsMode: boolean;
+        f: Features;
+        found: { grip: Grip; score: number };
+        rapidUncurl: boolean;
+      }
+    >;
     for (const side of hands) {
       const poseSide = this.calibration.mirrorLabels
         ? side === "left"
@@ -381,7 +397,7 @@ export class Camera {
       );
       const f = gripResult.features;
       this.gripScores[side] = gripResult.scores;
-      this.classScores[side] = gripResult.classes;
+      this.classScores[side] = { ...gripResult.classes };
       this.currentFeatures[side] = f;
       const rawFound = anchorsMode
         ? gripResult.found
@@ -394,7 +410,7 @@ export class Camera {
           );
       const rawCurl =
         f.length >= 4 ? (f[0] + f[1] + f[2] + f[3]) / 4 : 0;
-      const found =
+      let found: { grip: Grip; score: number } =
         this.calibration.assistedGrips &&
         rawFound.grip === "unknown" &&
         validFeatures(f) &&
@@ -403,16 +419,85 @@ export class Camera {
           : rawCurl > 0.24)
           ? { grip: "jug" as Grip, score: Math.max(rawFound.score, 0.76) }
           : rawFound;
-      let grip = this.latches[side].update(found.grip, found.score, o.t);
+      let rapidUncurl = false;
+      if (d && gripResult.scores) {
+        const openness = gripResult.scores.openness;
+        const curl =
+          (gripResult.scores.curl[1] +
+            gripResult.scores.curl[2] +
+            gripResult.scores.curl[3] +
+            gripResult.scores.curl[4]) /
+          4;
+        const minPinch = validFeatures(f)
+          ? Math.min(f[9] ?? 1, f[18] ?? f[9] ?? 1)
+          : 0;
+        const clawScore =
+          validFeatures(f) && f.length >= 18
+            ? gripResult.classes.crimp
+            : gripResult.scores.claw;
+        const prev = this.prevShape[side];
+        const dt = prev ? o.t - prev.t : 0;
+        const heldGrip =
+          this.latches[side].grip === "jug" ||
+          this.latches[side].grip === "crimp" ||
+          this.latches[side].grip === "pinch";
+        if (
+          prev &&
+          dt >= 10 &&
+          dt <= 180 &&
+          heldGrip &&
+          openness - prev.openness >= 0.17 &&
+          openness >= 0.45 &&
+          prev.curl - curl >= 0.12 &&
+          minPinch >= 0.45 &&
+          clawScore < 0.48
+        ) {
+          rapidUncurl = true;
+          found = { grip: "release", score: Math.max(found.score, 0.9) };
+          this.classScores[side].release = Math.max(
+            this.classScores[side].release,
+            found.score,
+          );
+        }
+        if (!prev || o.t !== prev.t) {
+          this.prevShape[side] = { openness, curl, t: o.t };
+        }
+      }
+      handEval[side] = { poseSide, d, s, anchorsMode, f, found, rapidUncurl };
+    }
+    const dualRelease =
+      handEval.left.found.grip === "release" &&
+      handEval.left.found.score >= 0.68 &&
+      handEval.right.found.grip === "release" &&
+      handEval.right.found.score >= 0.68;
+    for (const side of hands) {
+      const { poseSide, d, s, anchorsMode, f, found, rapidUncurl } =
+        handEval[side];
+      const fastTransition = rapidUncurl || dualRelease;
+      let grip = this.latches[side].update(
+        found.grip,
+        found.score,
+        o.t,
+        fastTransition,
+      );
       const poseWrist = o.pose[poseSide === "left" ? 15 : 16];
-      const wrist =
+      const rawWrist =
         d &&
         d.points.length === 21 &&
         Number.isFinite(d.points[0].x + d.points[0].y)
           ? d.points[0]
-          : poseWrist && (poseWrist.visibility ?? 0) > 0.65
+          : poseWrist &&
+              (poseWrist.visibility ?? 0) > 0.38 &&
+              Number.isFinite(poseWrist.x + poseWrist.y)
             ? poseWrist
             : null;
+      const wrist = rawWrist
+        ? {
+            ...rawWrist,
+            x: clamp(rawWrist.x, 0.005, 0.995),
+            y: clamp(rawWrist.y, 0.005, 0.995),
+          }
+        : null;
       // Losing finger classification must not stop otherwise well-tracked arms.
       const elbow = o.pose[poseSide === "left" ? 13 : 14];
       if (elbow && s && wrist)
@@ -428,12 +513,17 @@ export class Camera {
         !!s &&
         (s.visibility ?? 1) > 0.5 &&
         (!mirrorMode || !!armSource);
-      if (!quality || found.grip === "release" || grip === "release")
+      if (
+        !quality ||
+        rapidUncurl ||
+        found.grip === "release" ||
+        grip === "release"
+      )
         delete this.readyContinuity[side];
       const prevContinuity = this.readyContinuity[side];
       if (
         prevContinuity &&
-        (o.t < prevContinuity.t || o.t - prevContinuity.t > 140)
+        (o.t < prevContinuity.t || o.t - prevContinuity.t > 260)
       )
         delete this.readyContinuity[side];
       const activeContinuity = this.readyContinuity[side];
@@ -465,26 +555,79 @@ export class Camera {
         ready = true;
       }
       this.grips[side] = effectiveGrip;
-      this.frameEdge[side] =
+      const p = d?.points || [];
+      if (quality && wrist) {
+        const absolute = this.mapper.map(
+          poseSide,
+          o.pose,
+          wrist,
+          o.width,
+          o.height,
+          this.calibration.motionGain ?? 1.3,
+        );
+        const requested =
+          this.comfort.map(
+            side,
+            this.mapper.rawPosition[poseSide],
+            mirrorMode
+              ? (this.calibration.armGain ?? 1.8)
+              : (this.calibration.comfortGain ?? 2.1),
+            anchorsMode,
+          ) ?? absolute;
+        const rawPosition = this.mapper.rawPosition[poseSide],
+          previous = this.previousPosition[side],
+          elapsed = previous ? (o.t - previous.t) / 1000 : 0;
+        const speed =
+          previous && elapsed > 0 && elapsed < 0.3
+            ? (dist(rawPosition, previous.p) * 0.745) / elapsed
+            : 0;
+        const decay =
+          elapsed > 0 ? Math.pow(0.5, clamp(elapsed / 0.05, 1, 10)) : 0.5;
+        this.positionSpeed[side] =
+          decay * this.positionSpeed[side] + (1 - decay) * speed;
+        this.previousPosition[side] = { p: { ...rawPosition }, t: o.t };
+        const filters = anchorsMode
+          ? this.positionFilters[side]
+          : this.filters[side];
+        this.targets[side] = v(
+          filters[0].update(requested.x, o.t),
+          filters[1].update(requested.y, o.t),
+        );
+      } else {
+        this.positionSpeed[side] *= 0.5;
+      }
+      const atExtremeEdge =
         !!wrist &&
-        (wrist.x < (anchorsMode ? 0.045 : 0.05) ||
-          wrist.x > (anchorsMode ? 0.955 : 0.95) ||
-          wrist.y < (anchorsMode ? 0.06 : 0.05) ||
-          wrist.y > (anchorsMode ? 0.965 : 0.95) ||
-          (d?.points.filter(
-            (p) => p.x < 0.012 || p.x > 0.988 || p.y < 0.012 || p.y > 0.988,
-          ).length ?? 0) >= 5);
+        (wrist.x < 0.018 ||
+          wrist.x > 0.982 ||
+          wrist.y < 0.018 ||
+          wrist.y > 0.988);
+      if (atExtremeEdge) {
+        if (
+          this.edgeSince[side] === undefined ||
+          o.t < this.edgeSince[side]!
+        ) {
+          this.edgeSince[side] = o.t;
+        }
+        const sustained =
+          o.t - this.edgeSince[side]! >= 650 &&
+          this.positionSpeed[side] < 0.4;
+        this.frameEdge[side] = this.frameEdge[side] || sustained;
+      } else {
+        delete this.edgeSince[side];
+        this.frameEdge[side] = false;
+      }
       // A larger return zone provides hysteresis: do not repeatedly resume at
       // the same boundary that paused the climb. Whole fingers must fit too.
       this.resetSafe[side] =
         !!wrist &&
         quality &&
-        wrist.x > 0.11 &&
-        wrist.x < 0.89 &&
-        wrist.y > 0.16 &&
-        wrist.y < 0.9 &&
+        wrist.x > 0.08 &&
+        wrist.x < 0.92 &&
+        wrist.y > 0.12 &&
+        wrist.y < 0.93 &&
         !d?.points.some(
-          (p) => p.x < 0.025 || p.x > 0.975 || p.y < 0.025 || p.y > 0.975,
+          (p) => p.x < 0.015 || p.x > 0.985 || p.y < 0.015 || p.y > 0.985,
         );
       this.recognition[side] = {
         candidate: found.grip,
@@ -503,42 +646,6 @@ export class Camera {
                     ? "Confirming shape"
                     : "Recognized",
       };
-      const p = d?.points || [];
-      if (quality && wrist) {
-        const absolute = this.mapper.map(
-          poseSide,
-          o.pose,
-          wrist,
-          o.width,
-          o.height,
-          this.calibration.motionGain ?? 1.15,
-        );
-        const requested =
-          this.comfort.map(
-            side,
-            this.mapper.rawPosition[poseSide],
-            mirrorMode
-              ? (this.calibration.armGain ?? 1.8)
-              : (this.calibration.comfortGain ?? 1.8),
-            anchorsMode,
-          ) ?? absolute;
-        const rawPosition = this.mapper.rawPosition[poseSide],
-          previous = this.previousPosition[side],
-          elapsed = previous ? (o.t - previous.t) / 1000 : 0;
-        const speed =
-          previous && elapsed > 0 && elapsed < 0.3
-            ? (dist(rawPosition, previous.p) * 0.745) / elapsed
-            : 0;
-        this.positionSpeed[side] = 0.5 * this.positionSpeed[side] + 0.5 * speed;
-        this.previousPosition[side] = { p: { ...rawPosition }, t: o.t };
-        const filters = anchorsMode
-          ? this.positionFilters[side]
-          : this.filters[side];
-        this.targets[side] = v(
-          filters[0].update(requested.x, o.t),
-          filters[1].update(requested.y, o.t),
-        );
-      }
       const target = { ...this.targets[side] };
       const armMotion = this.arms[side].observe(armSource, o.t, target);
       let orientation: "up" | "down" | "side" = p.length
@@ -592,6 +699,18 @@ export class Camera {
     this.calibration.usePersonalGrips = true;
     this.save();
   }
+  assistDynoFlight(dynoVector: V): boolean {
+    const raw = {
+      left: this.mapper.rawPosition[
+        this.calibration.mirrorLabels ? "right" : "left"
+      ],
+      right:
+        this.mapper.rawPosition[
+          this.calibration.mirrorLabels ? "left" : "right"
+        ],
+    };
+    return this.comfort.assistDynoFlight(raw, dynoVector);
+  }
   recenter(
     anchors: Record<Hand, V>,
     poses?: Record<Hand, ArmPose>,
@@ -599,6 +718,8 @@ export class Camera {
   ) {
     this.centerCount++;
     this.readyContinuity = {};
+    this.edgeSince = {};
+    this.frameEdge = { left: false, right: false };
     const anchorsMode =
       !this.calibration.armMode || this.calibration.armMode === "anchors";
     const raw = {
@@ -670,6 +791,9 @@ export class Camera {
     this.previousPosition = {};
     this.positionSpeed = { left: 0, right: 0 };
     this.readyContinuity = {};
+    this.edgeSince = {};
+    this.prevShape = {};
+    this.frameEdge = { left: false, right: false };
     this.lastOrientation = { left: "up", right: "up" };
     this.identity.reset();
     for (const side of hands) {

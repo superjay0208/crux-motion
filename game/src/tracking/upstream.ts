@@ -110,14 +110,18 @@ export function cameraGrip(
               fallback.classes.jug,
               fistScore > 0.72 ? fistScore * 0.95 : fistScore * 0.25,
             ),
-    crimp: rolledFist
-      ? Math.min(fallback.classes.crimp, 0.12)
-      : Math.max(
-          fallback.classes.crimp,
-          clawScore > 0.58 && pinchScore < 0.5 && fistScore < 0.65
-            ? clawScore * 0.92
-            : clawScore * 0.2,
-        ),
+    crimp:
+      rolledFist || fallback.grip === "release"
+        ? Math.min(fallback.classes.crimp, 0.14)
+        : Math.max(
+            fallback.classes.crimp,
+            (!!world || fallback.grip === "crimp") &&
+              clawScore > 0.58 &&
+              pinchScore < 0.5 &&
+              fistScore < 0.65
+              ? clawScore * 0.92
+              : clawScore * 0.2,
+          ),
     pinch: rolledFist
       ? Math.min(fallback.classes.pinch, 0.08)
       : Math.max(
@@ -127,11 +131,17 @@ export function cameraGrip(
             : pinchScore * 0.2,
         ),
     release:
-      rolledFist || minTipGap < 0.36 || fallback.grip === "pinch"
+      rolledFist ||
+      minTipGap < 0.36 ||
+      fallback.grip === "pinch" ||
+      fallback.grip === "crimp"
         ? Math.min(fallback.classes.release, 0.14)
         : Math.max(
             fallback.classes.release,
-            openScore > 0.78 && shape.openness > 0.58
+            openScore > 0.68 &&
+              shape.openness > 0.5 &&
+              minTipGap >= 0.4 &&
+              clawScore < 0.5
               ? openScore
               : openScore * 0.22,
           ),
@@ -147,9 +157,10 @@ export function cameraGrip(
 
   const openRelease =
     fallback.grip === "release" ||
-    (openScore > 0.78 &&
-      shape.openness > 0.58 &&
-      minTipGap >= 0.42 &&
+    (openScore > 0.68 &&
+      shape.openness > 0.5 &&
+      minTipGap >= 0.4 &&
+      clawScore < 0.5 &&
       fallback.grip !== "pinch" &&
       fallback.grip !== "crimp" &&
       !(personalMatch && openScore <= 0.88));

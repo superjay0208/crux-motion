@@ -399,4 +399,16 @@ export class AudioFeedback {
       }
     }
   }
+
+  playDynoFocus() {
+    if (this.muted || !this.context || this.context.state !== "running") return;
+    try {
+      const c = this.context,
+        t = c.currentTime;
+      this.tone(c, "sine", 72, 118, t, 0.16, 0.046, 0.024);
+      this.burst(c, "bandpass", 260, 520, 1.35, t, 0.16, 0.022);
+    } catch {
+      // Keep gameplay resilient if browser audio state changes mid-frame.
+    }
+  }
 }

@@ -44,6 +44,11 @@ export class AnchorRig extends Rig {
       l = len(p);
     return l > 0.745 ? mul(p, 0.745 / l) : p;
   }
+  meanHandOffset(input: Inputs): V {
+    const l = this.offset(input, "left"),
+      r = this.offset(input, "right");
+    return v((l.x + r.x) * 0.5, (l.y + r.y) * 0.5);
+  }
   override aim(side: Hand, input: Inputs) {
     return add(this.shoulder(side), this.offset(input, side));
   }
@@ -164,9 +169,18 @@ export class AnchorRig extends Rig {
     }
     this.history.clear();
   }
-  applyLaunchVelocity(velocity: V) {
-    this.torso.setLinearVelocity(velocity);
-    this.legs.setLinearVelocity(velocity);
+  applyLaunchVelocity(velocity: V, sag = 0) {
+    const clampedSag = clamp(sag, 0, 0.12);
+    const vy =
+      clampedSag > 0 && velocity.y > 0
+        ? Math.min(
+            4.05,
+            Math.sqrt(velocity.y * velocity.y + 2 * 9.81 * clampedSag),
+          )
+        : velocity.y;
+    const launch = v(velocity.x, vy);
+    this.torso.setLinearVelocity(launch);
+    this.legs.setLinearVelocity(launch);
   }
   onCatch(preVel: V) {
     if (len(preVel) <= 0.55) return;

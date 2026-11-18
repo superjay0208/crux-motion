@@ -23,8 +23,10 @@ declare global {
       readonly assisted: boolean;
       readonly dynoCharge: number;
       readonly dynoReady: boolean;
+      readonly dynoWindowRemaining: number;
       readonly dynoSource: "none" | "push" | "swing";
       readonly dynoLaunch: boolean;
+      readonly timeScale: number;
       readonly delegate: string;
       readonly camera: {
         ready: boolean;
@@ -395,6 +397,13 @@ test("settings modal toggles Assisted climb, Personal best ghost, and Practice H
   await page.locator("#ghost-toggle").click();
   await expect(page.locator("#ghost-toggle")).toHaveText("On");
 
+  // Toggle Dyno focus slow-mo On -> Off -> On
+  await expect(page.locator("#dyno-slowmo-toggle")).toHaveText("On");
+  await page.locator("#dyno-slowmo-toggle").click();
+  await expect(page.locator("#dyno-slowmo-toggle")).toHaveText("Off");
+  await page.locator("#dyno-slowmo-toggle").click();
+  await expect(page.locator("#dyno-slowmo-toggle")).toHaveText("On");
+
   // Switch Practice physics to Hand anchors
   await page.locator("#practice-physics").selectOption("anchors");
   await expect(page.locator("#practice-physics")).toHaveValue("anchors");
@@ -643,16 +652,28 @@ test("Launchpad (motion-07) charges dyno momentum, triggers simultaneous KeyV/#r
         const state = await page.evaluate(() => ({
           charge: window.cruxMotion.dynoCharge,
           ready: window.cruxMotion.dynoReady,
+          windowRemaining: window.cruxMotion.dynoWindowRemaining,
           source: window.cruxMotion.dynoSource,
+          timeScale: window.cruxMotion.timeScale,
         }));
-        return state.charge > 0 && state.ready && state.source !== "none";
+        return (
+          state.charge > 0 &&
+          state.ready &&
+          state.windowRemaining > 0 &&
+          state.source !== "none" &&
+          state.timeScale < 0.6
+        );
       },
       { timeout: 5_000 },
     )
     .toBe(true);
+  expect(await page.evaluate(() => window.cruxMotion.timeScale)).toBeCloseTo(
+    0.38,
+    2,
+  );
   await expect(page.locator("#motion-label")).toContainText("DYNO READY");
 
-  // Trigger simultaneous two-hand release via KeyV while dynoReady
+  // Trigger simultaneous two-hand release via KeyV while dynoReady -> snaps timeScale back to 1
   await page.keyboard.press("KeyV");
   await page.keyboard.up("KeyW");
   await expect
@@ -660,11 +681,13 @@ test("Launchpad (motion-07) charges dyno momentum, triggers simultaneous KeyV/#r
       page.evaluate(() => ({
         contacts: window.cruxMotion.snapshot.contacts,
         dynoLaunch: window.cruxMotion.dynoLaunch,
+        timeScale: window.cruxMotion.timeScale,
       })),
     )
     .toEqual({
       contacts: [null, null],
       dynoLaunch: true,
+      timeScale: 1,
     });
 
   // Also verify #release-both button simultaneously detaches both contacts into flight

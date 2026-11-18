@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ComfortFrame, ARM_REACH } from "../src/tracking/motion";
+import {
+  ComfortFrame,
+  InputProtection,
+  ARM_REACH,
+} from "../src/tracking/motion";
 import { RecoveryGate } from "../src/tracking/RecoveryGate";
 import { FollowCamera } from "../src/render/FollowCamera";
 import { Camera } from "../src/tracking/Camera";
@@ -59,9 +63,9 @@ describe("continuous climbing workspace", () => {
     c.rebase({ left: v(), right: v() }, { left: v(0, 0.5), right: v(0, 0.5) });
     for (let n = 1; n <= 20; n++) c.map("left", v(0, n / 20), 1.8, true);
     expect(c.map("left", v(0, 1), 1.8, true)!.y).toBeCloseTo(ARM_REACH);
-    expect(c.map("left", v(0, 0.98), 1.8, true)!.y).toBeCloseTo(
-      ARM_REACH - 0.02 * 1.8 * ARM_REACH,
-    );
+    const reversed = c.map("left", v(0, 0.98), 1.8, true)!;
+    expect(reversed.y).toBeLessThan(ARM_REACH - 0.02 * 1.8 * ARM_REACH + 0.005);
+    expect(reversed.y).toBeGreaterThan(ARM_REACH - 0.05);
     expect(c.map("right", v(), 1.8, true)).toEqual(v(0, 0.5));
   });
   it("never slowly recenters a stationary extended or crossed hand", () => {
@@ -92,7 +96,7 @@ describe("continuous climbing workspace", () => {
     g.cancel();
     expect(g.update(2800, 18, true)).toBe(false);
   });
-  it("warns before a wrist leaves the image and requires an inner return zone", () => {
+  it("debounces extreme frame edges for >= 650ms stationary before pausing and requires an inner return zone", () => {
     const c = new Camera({} as HTMLVideoElement),
       s = new Simulation(routes[0], "camera"),
       input = structuredClone(s.input);
@@ -101,30 +105,45 @@ describe("continuous climbing workspace", () => {
     const safe = observation(input, 1, 100);
     c.process(safe);
     expect(c.resetSafe.left).toBe(true);
-    const edge = structuredClone(safe);
-    edge.sequence = 2;
-    edge.t = 180;
-    const dy = edge.detections[0].points[0].y - 0.05;
-    for (const p of edge.detections[0].points) p.y -= dy;
-    edge.pose[15].y = 0.05;
-    c.process(edge);
+
+    // Extreme top edge (y = 0.012 < 0.018): brief touch (< 650ms) stays frameEdge: false;
+    // stationary >= 700ms sets frameEdge: true.
+    const makeTopEdge = (seq: number, t: number) => {
+      const edge = structuredClone(safe);
+      edge.sequence = seq;
+      edge.t = t;
+      const dy = edge.detections[0].points[0].y - 0.012;
+      for (const p of edge.detections[0].points) p.y = Math.max(0.005, p.y - dy);
+      edge.pose[15].y = 0.012;
+      return edge;
+    };
+    c.process(makeTopEdge(2, 200));
+    expect(c.frameEdge.left).toBe(false);
+    expect(c.resetSafe.left).toBe(false);
+    c.process(makeTopEdge(3, 550));
+    expect(c.frameEdge.left).toBe(false);
+    c.process(makeTopEdge(4, 900));
+    c.process(makeTopEdge(5, 950));
     expect(c.frameEdge.left).toBe(true);
     expect(c.resetSafe.left).toBe(false);
+
+    // Moving into intermediate band (y = 0.08, between 0.018 and 0.12) clears frameEdge while keeping resetSafe false.
     const band = structuredClone(safe);
-    band.sequence = 3;
-    band.t = 220;
-    const bandDy = band.detections[0].points[0].y - 0.12;
+    band.sequence = 6;
+    band.t = 1020;
+    const bandDy = band.detections[0].points[0].y - 0.08;
     for (const p of band.detections[0].points)
       p.y = Math.max(0.03, p.y - bandDy);
-    band.pose[15].y = 0.12;
+    band.pose[15].y = 0.08;
     c.process(band);
     expect(c.frameEdge.left).toBe(false);
     expect(c.resetSafe.left).toBe(false);
-    c.process({ ...safe, sequence: 4, t: 280 });
+
+    c.process({ ...safe, sequence: 7, t: 1100 });
     expect(c.frameEdge.left).toBe(false);
     expect(c.resetSafe.left).toBe(true);
   });
-  it("accepts comfortable seated chest Jug poses while keeping >= 0.065 edge hysteresis", () => {
+  it("never triggers frameEdge on a fast downward dyno pull to y = 0.98..0.992 for 400ms, while >= 700ms stationary out-of-bounds sets frameEdge", () => {
     const c = new Camera({} as HTMLVideoElement),
       s = new Simulation(routes[0], "camera"),
       seated = observation(structuredClone(s.input), 1, 100);
@@ -140,25 +159,93 @@ describe("continuous climbing workspace", () => {
     c.process(seated);
     expect(c.frameEdge).toEqual({ left: false, right: false });
     expect(c.resetSafe).toEqual({ left: true, right: true });
-    const lowerBand = structuredClone(seated);
-    lowerBand.sequence = 2;
-    lowerBand.t = 180;
-    const shiftBand = 0.93 - lowerBand.detections[0].points[0].y;
-    for (const p of lowerBand.detections[0].points)
-      p.y = Math.min(0.96, p.y + shiftBand);
-    lowerBand.pose[15].y = 0.93;
-    c.process(lowerBand);
+
+    // Fast downward pull to y = 0.98 (and grazing y = 0.992) over 400ms must NEVER set frameEdge = true.
+    for (let i = 0; i <= 8; i++) {
+      const pull = structuredClone(seated);
+      pull.sequence = 2 + i;
+      pull.t = 150 + i * 50; // 150ms -> 550ms (400ms duration)
+      const targetY = i < 4 ? 0.88 + i * 0.03 : 0.98;
+      const shift = targetY - pull.detections[0].points[0].y;
+      for (const p of pull.detections[0].points)
+        p.y = Math.min(0.995, p.y + shift);
+      pull.pose[15].y = targetY;
+      c.process(pull);
+      expect(c.frameEdge.left).toBe(false);
+    }
+
+    // Even at extreme y = 0.992 (> 0.988), < 650ms stays false, while >= 700ms stationary sets frameEdge = true.
+    const makeExtremeBottom = (seq: number, t: number) => {
+      const low = structuredClone(seated);
+      low.sequence = seq;
+      low.t = t;
+      const shift = 0.992 - low.detections[0].points[0].y;
+      for (const p of low.detections[0].points)
+        p.y = Math.min(0.996, p.y + shift);
+      low.pose[15].y = 0.992;
+      return low;
+    };
+    c.process(makeExtremeBottom(20, 1000));
     expect(c.frameEdge.left).toBe(false);
-    expect(c.resetSafe.left).toBe(false);
-    const lowerEdge = structuredClone(seated);
-    lowerEdge.sequence = 3;
-    lowerEdge.t = 260;
-    const shiftEdge = 0.97 - lowerEdge.detections[0].points[0].y;
-    for (const p of lowerEdge.detections[0].points) p.y += shiftEdge;
-    lowerEdge.pose[15].y = 0.97;
-    c.process(lowerEdge);
+    c.process(makeExtremeBottom(21, 1400));
+    expect(c.frameEdge.left).toBe(false);
+    c.process(makeExtremeBottom(22, 1720));
+    c.process(makeExtremeBottom(23, 1760));
     expect(c.frameEdge.left).toBe(true);
     expect(c.resetSafe.left).toBe(false);
+
+    // InputProtection tolerates up to 750ms of missing hand tracking before pausing.
+    const prot = new InputProtection();
+    const okIn = structuredClone(s.input);
+    prot.accept(okIn, 100);
+    okIn.left.quality = false;
+    expect(prot.accept(okIn, 300).pause).toBe(false);
+    expect(prot.accept(okIn, 1000).pause).toBe(false); // 700ms <= 750ms
+    expect(prot.accept(okIn, 1080).pause).toBe(true); // 780ms > 750ms
+  });
+  it("shifts upward reach origin cleanly on assistDynoFlight after a two-hand downward pull while keeping stationary hands drift-free", () => {
+    const c = new Camera({} as HTMLVideoElement),
+      s = new Simulation(routes[0], "camera"),
+      raw = structuredClone(s.input);
+    raw.left.target = v(-0.1, 0.15);
+    raw.right.target = v(0.1, 0.15);
+    for (let n = 0; n < 8; n++) c.process(observation(raw, n + 1, (n + 1) * 50));
+    const anchors = { left: v(-0.13, 0.48), right: v(0.13, 0.48) };
+    c.recenter(anchors);
+    const initialSnap = c.comfort.snapshot!;
+
+    // Without a downward pull, assistDynoFlight is a no-op.
+    expect(c.assistDynoFlight(v(0, 2.4))).toBe(false);
+    expect(c.comfort.snapshot!.centers).toEqual(initialSnap.centers);
+
+    // Pull both hands downward (raw.y < centers.y - 0.04) to launch an upward dyno.
+    raw.left.target = v(-0.1, -0.06);
+    raw.right.target = v(0.1, -0.06);
+    for (let n = 0; n < 4; n++)
+      c.process(observation(raw, 20 + n, 500 + n * 40));
+
+    // Weak vertical velocity (<= 0.8) does not shift centers; real upward dyno (2.4 > 0.8) shifts centers.y downward.
+    expect(c.assistDynoFlight(v(0, 0.4))).toBe(false);
+    expect(c.assistDynoFlight(v(0, 2.4))).toBe(true);
+    const shifted = c.comfort.snapshot!;
+    expect(shifted.centers.left.y).toBeLessThan(initialSnap.centers.left.y - 0.08);
+    expect(shifted.centers.right.y).toBeLessThan(initialSnap.centers.right.y - 0.08);
+
+    // Lifting physical hands back to comfortable chest height (y = 0.15) now aims cleanly overhead (> 0.65m)!
+    raw.left.target = v(-0.1, 0.15);
+    raw.right.target = v(0.1, 0.15);
+    for (let n = 0; n < 8; n++)
+      c.process(observation(raw, 40 + n, 800 + n * 40));
+    expect(c.currentInput!.left.target.y).toBeGreaterThan(0.65);
+    expect(c.currentInput!.right.target.y).toBeGreaterThan(0.65);
+
+    // Stationary hands remain 100% drift-free across many frames after assistDynoFlight.
+    const settledLeft = { ...c.comfort.map("left", v(-0.1, 0.12), 2.1, true)! };
+    for (let n = 0; n < 1200; n++) {
+      expect(
+        dist(c.comfort.map("left", v(-0.1, 0.12), 2.1, true)!, settledLeft),
+      ).toBeLessThan(1e-12);
+    }
   });
   it("resets a dropped free-hand anchor to chest-ready neutral when held is provided", () => {
     const c = new Camera({} as HTMLVideoElement),

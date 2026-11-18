@@ -141,7 +141,7 @@ export function classify(
       }))
       .sort((a, b) => b.score - a.score);
     // A clearly extended hand must remain a usable release, including with old tuning.
-    if (fallback.grip === "release" && fallback.score >= 0.95) return fallback;
+    if (fallback.grip === "release" && fallback.score >= 0.88) return fallback;
     if (
       ranked[0].score > 0.5 &&
       ranked[0].score - (ranked[1]?.score ?? 0) > 0.08
@@ -197,25 +197,33 @@ function geometricGrip(f: Features): { grip: Grip; score: number; classes: Class
     const rolledFist =
       compact < 1.24 || (curl > 0.56 && knuckle > 0.36 && compact < 1.48);
 
+    // 3. Crimp: Arched 4-Finger Claw / Half-Crimp Hook — PIP bent, MCP open, unpinched
+    const clawCrimp =
+      !rolledFist &&
+      minPinch >= 0.46 &&
+      ((bends > 0.32 && knuckle < 0.42 && compact >= 1.25 && compact <= 1.88) ||
+        (bends > 0.32 && distal < 0.36 && knuckle < 0.46 && compact >= 1.24 && compact <= 1.92));
+
     // 1. Release: Open 5 / Spread Hand — 4 fingers extended, unpinched, not arched into a claw
     const clearlyOpen =
       !rolledFist &&
-      minPinch >= 0.48 &&
-      bends <= 0.28 &&
-      ((openness > 0.56 && compact > 1.36) ||
-        (curl < 0.34 && compact > 1.50) ||
-        (maxBend < 0.24 && compact > 1.65 && spread > 0.8));
+      !clawCrimp &&
+      minPinch >= 0.46 &&
+      bends <= 0.32 &&
+      ((openness > 0.5 && compact > 1.32) ||
+        (curl < 0.34 && compact > 1.46) ||
+        (maxBend < 0.26 && compact > 1.6 && spread > 0.75));
     const releaseScore = clearlyOpen
       ? clamp(
           0.88 +
-            0.06 * ramp(0.56, 0.88, openness) +
-            0.04 * ramp(1.45, 1.9, compact),
+            0.06 * ramp(0.5, 0.88, openness) +
+            0.04 * ramp(1.38, 1.9, compact),
           0.88,
           0.98,
         )
-      : minPinch < 0.48 || rolledFist || bends > 0.3
-        ? clamp(0.12 * ramp(0.42, 0.16, bends), 0.03, 0.12)
-        : clamp(0.22 * ramp(1.25, 1.6, compact) * ramp(0.38, 0.2, bends), 0.04, 0.22);
+      : minPinch < 0.46 || rolledFist || clawCrimp || bends > 0.34
+        ? clamp(0.12 * ramp(0.44, 0.16, bends), 0.03, 0.12)
+        : clamp(0.22 * ramp(1.25, 1.6, compact) * ramp(0.4, 0.2, bends), 0.04, 0.22);
 
     // 2. Jug: Full Closed Power Fist — all 4 fingers rolled into palm
     const jugScore =
@@ -231,23 +239,17 @@ function geometricGrip(f: Features): { grip: Grip; score: number; classes: Class
                 0.15,
               );
 
-    // 3. Crimp: Arched 4-Finger Claw / Half-Crimp Hook — PIP bent, MCP open, unpinched
-    const clawCrimp =
-      !rolledFist &&
-      minPinch >= 0.46 &&
-      ((bends > 0.28 && knuckle < 0.42 && compact >= 1.25 && compact <= 1.88) ||
-        (bends > 0.27 && distal < 0.36 && knuckle < 0.46 && compact >= 1.24 && compact <= 1.92));
     const crimpScore = clawCrimp
       ? clamp(
           0.90 +
-            0.05 * ramp(0.28, 0.52, bends) +
+            0.05 * ramp(0.32, 0.52, bends) +
             0.03 * ramp(0.42, 0.08, knuckle),
           0.88,
           0.96,
         )
-      : rolledFist || minPinch < 0.46 || bends <= 0.24
+      : rolledFist || minPinch < 0.46 || bends <= 0.28 || clearlyOpen
         ? clamp(0.12 * ramp(0.2, 0.4, bends) * (rolledFist ? 0.5 : 1), 0.03, 0.13)
-        : clamp(0.2 * ramp(0.24, 0.32, bends) * ramp(0.55, 0.35, knuckle), 0.04, 0.2);
+        : clamp(0.2 * ramp(0.26, 0.34, bends) * ramp(0.55, 0.35, knuckle), 0.04, 0.2);
 
     // 4. Pinch: Opposed Thumb-to-Index/Middle Clamp out in front of palm (NEVER when rolledFist / compact < 1.24)
     const beakPinch =
@@ -314,7 +316,7 @@ export class GestureLatch {
   private since = 0;
   private frames = 0;
   private last = -1;
-  update(grip: Grip, score: number, t: number) {
+  update(grip: Grip, score: number, t: number, immediate = false) {
     if (t <= this.last) return this.grip;
     this.last = t;
     if (grip !== this.pending) {
@@ -322,12 +324,24 @@ export class GestureLatch {
       this.since = t;
       this.frames = 1;
     } else this.frames++;
+    const isCatchGrip =
+      grip === "jug" || grip === "crimp" || grip === "pinch";
+    const instantCatch =
+      (this.grip === "release" || this.grip === "unknown") &&
+      isCatchGrip &&
+      (score >= 0.8 || immediate);
+    const instantRelease =
+      grip === "release" && (score >= 0.86 || immediate);
+    if (instantCatch || instantRelease) {
+      this.grip = grip;
+      return this.grip;
+    }
     // Uncertainty must become visible even when its classifier score is low.
     // Unknown is a protected tracking state, never an intentional release.
     if (
       (score >= 0.4 || grip === "unknown") &&
       this.frames >= 2 &&
-      t - this.since >= (grip === "unknown" ? 100 : 65)
+      t - this.since >= (grip === "unknown" ? 100 : 50)
     )
       this.grip = grip;
     return this.grip;

@@ -1,45 +1,45 @@
 {
-  "generatedAt": "2026-11-18T05:35:41.771Z",
+  "generatedAt": "2026-11-18T07:00:17.353Z",
   "node": "v24.19.0",
   "platform": "win32-x64",
   "hz": 120,
   "budgetP95Ms": 1,
   "pass": true,
-  "totalWallMs": 1692.0408,
-  "realtimeSpeedup": 354.6,
+  "totalWallMs": 1836.6214,
+  "realtimeSpeedup": 326.7,
   "memory": {
-    "heapBeforeBytes": 31038720,
-    "heapAfterBytes": 55297864,
-    "heapDeltaBytes": 24259144,
-    "heapDeltaMb": 23.135
+    "heapBeforeBytes": 27541784,
+    "heapAfterBytes": 46775088,
+    "heapDeltaBytes": 19233304,
+    "heapDeltaMb": 18.342
   },
   "combined": {
     "steps": 72000,
     "simulatedSeconds": 600,
-    "meanMs": 0.02323,
-    "p50Ms": 0.0214,
-    "p95Ms": 0.0317,
-    "p99Ms": 0.0435,
-    "maxMs": 1.369
+    "meanMs": 0.02511,
+    "p50Ms": 0.0229,
+    "p95Ms": 0.0366,
+    "p99Ms": 0.0544,
+    "maxMs": 1.2899
   },
   "controllers": {
     "anchors": {
       "steps": 36000,
       "simulatedSeconds": 300,
-      "meanMs": 0.02068,
-      "p50Ms": 0.0186,
-      "p95Ms": 0.0289,
-      "p99Ms": 0.04,
-      "maxMs": 1.369
+      "meanMs": 0.02214,
+      "p50Ms": 0.0195,
+      "p95Ms": 0.0335,
+      "p99Ms": 0.0487,
+      "maxMs": 1.2899
     },
     "motors": {
       "steps": 36000,
       "simulatedSeconds": 300,
-      "meanMs": 0.02579,
-      "p50Ms": 0.0238,
-      "p95Ms": 0.0335,
-      "p99Ms": 0.0459,
-      "maxMs": 0.5469
+      "meanMs": 0.02808,
+      "p50Ms": 0.0254,
+      "p95Ms": 0.0398,
+      "p99Ms": 0.0572,
+      "maxMs": 0.6665
     }
   }
 }

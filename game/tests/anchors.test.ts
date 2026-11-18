@@ -481,7 +481,7 @@ describe("ported hand-anchor locomotion", () => {
     for (let t = 0; t < 15; t++) scoopSim.step();
     expect(scoopSim.contacts.right?.hold.id).toBe("move-1");
   });
-  it("rejects single-hand or staggered (>20 tick) releases from triggering dynoLaunch or flew", () => {
+  it("rejects single-hand or overly staggered (>34 tick) releases from triggering dynoLaunch or flew", () => {
     const s = new Simulation(routes[8], "camera");
     s.fatigue = false;
     const input = structuredClone(s.input);
@@ -500,12 +500,13 @@ describe("ported hand-anchor locomotion", () => {
       s.step();
     }
     expect(s.dynoReady).toBe(true);
-    // Release left first, then wait 24 ticks (> 20 ticks) before releasing right.
+    // Release left first, then wait 40 ticks (> 34-tick simultaneous stagger window) before releasing right.
     input.left.grip = "release";
     input.left.ready = false;
     s.setInput(input);
-    for (let t = 0; t < 24; t++) s.step();
+    for (let t = 0; t < 40; t++) s.step();
     expect(s.dynoLaunch).toBe(false);
+    expect(s.dynoReady).toBe(false);
     input.right.grip = "release";
     input.right.ready = false;
     s.setInput(input);
@@ -516,7 +517,7 @@ describe("ported hand-anchor locomotion", () => {
       s.events.some((e) => e.kind === "launch" && e.impact === "launch"),
     ).toBe(false);
     const landing = s.route.holds.find((h) => h.id === "move-0")!;
-    // Even if teleported onto landing after >=0.08s of flight, staggered launch must not count as flew.
+    // Even if teleported onto landing after >=0.08s of flight, overly staggered launch must not count as flew.
     for (let t = 0; t < 16; t++) s.step();
     s.rig.torso.setPosition(v(landing.p.x, landing.p.y - 0.65));
     s.rig.legs.setPosition(v(landing.p.x, landing.p.y - 1.4));
@@ -545,7 +546,7 @@ describe("ported hand-anchor locomotion", () => {
       input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
     s.setInput(input);
     s.start();
-    // Build charge briefly, then stay stationary for >17 ticks so charge decays strictly to 0.
+    // Build charge briefly, then stay stationary past the 60-tick capture window so charge decays strictly to 0.
     for (let t = 0; t < 40; t++) {
       for (const side of hands) input[side].target.y = 0.66;
       s.setInput(input);
@@ -557,9 +558,11 @@ describe("ported hand-anchor locomotion", () => {
       s.step();
     }
     expect(s.dynoReady).toBe(true);
-    for (let t = 0; t < 34; t++) s.step();
+    expect(s.dynoWindowRemaining).toBeGreaterThan(0.95);
+    for (let t = 0; t < 90; t++) s.step();
     expect(s.dynoCharge).toBe(0);
     expect(s.dynoReady).toBe(false);
+    expect(s.dynoWindowRemaining).toBe(0);
     expect(s.dynoSource).toBe("none");
 
     // Simultaneous release from stationary dead-hang.
@@ -729,5 +732,205 @@ describe("ported hand-anchor locomotion", () => {
     expect(s.flew).toBe(true);
     expect(catchLegOmega).toBeGreaterThan(0.8);
     expect(maxLegWhip).toBeGreaterThan(0.1);
+  });
+  it("builds dynoReady from a compact 13cm AnchorRig pull and grants proportional hop on near-full charge", () => {
+    const { s, input } = fixture();
+    for (let t = 0; t < 45; t++) s.step();
+    // Compact 13cm downward hand pull over 20 ticks (167ms) easily achievable in a centered webcam box.
+    for (let t = 0; t < 20; t++) {
+      const y = 0.5 - 0.13 * ((t + 1) / 20);
+      input.left.target.y = y;
+      input.right.target.y = y;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    expect(s.dynoCharge).toBe(1);
+    expect(s.dynoSource).toBe("push");
+    expect(s.dynoWindowRemaining).toBeGreaterThan(0.9);
+    expect(s.dynoVector.y).toBeGreaterThanOrEqual(1.92);
+
+    // Near-full charge forgiveness (0.72 <= charge < 1.0): slower ~0.28 m/s pull gives proportional upward hop.
+    const near = fixture();
+    for (let t = 0; t < 45; t++) near.s.step();
+    for (let t = 0; t < 36; t++) {
+      const y = 0.5 - (0.28 / 120) * (t + 1);
+      near.input.left.target.y = y;
+      near.input.right.target.y = y;
+      near.s.setInput(near.input);
+      near.s.step();
+    }
+    expect(near.s.dynoCharge).toBeGreaterThanOrEqual(0.75);
+    expect(near.s.dynoCharge).toBeLessThan(1);
+    near.input.left.grip = "release";
+    near.input.left.ready = false;
+    near.input.right.grip = "release";
+    near.input.right.ready = false;
+    near.s.setInput(near.input);
+    near.s.step();
+    expect(near.s.rig.velocity().y).toBeGreaterThan(1.2);
+  });
+  it("retains dynoReady and full upward launch velocity after holding stationary at the top of a pull for 36 ticks (300ms)", () => {
+    const s = new Simulation(routes[6], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    for (let t = 0; t < 45; t++) {
+      for (const side of hands) input[side].target.y = 0.56;
+      s.setInput(input);
+      s.step();
+    }
+    // Compact brisk pull to y = 0.34.
+    for (let t = 0; t < 18; t++) {
+      const y = 0.56 - 0.22 * ((t + 1) / 18);
+      for (const side of hands) input[side].target.y = y;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    const peakVec = { ...s.dynoVector };
+    expect(peakVec.y).toBeGreaterThan(1.92);
+
+    // Hold completely stationary at top of pull for 36 ticks (300ms) while 7Hz spring brakes torso to ~0 m/s.
+    for (let t = 0; t < 36; t++) s.step();
+    expect(Math.abs(s.rig.velocity().y)).toBeLessThan(0.1);
+    expect(s.dynoReady).toBe(true);
+    expect(s.dynoCharge).toBe(1);
+    expect(s.dynoWindowRemaining).toBeGreaterThan(0.3);
+    expect(s.dynoVector.y).toBeCloseTo(peakVec.y, 5);
+
+    for (const side of hands) {
+      input[side].grip = "release";
+      input[side].ready = false;
+    }
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(true);
+    expect(s.rig.velocity().y).toBeGreaterThan(1.9);
+  });
+  it("triggers dynoLaunch with the full locked peak dynoVector across a 26-tick (216ms) staggered dual-hand release", () => {
+    const s = new Simulation(routes[6], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    for (let t = 0; t < 45; t++) {
+      for (const side of hands) input[side].target.y = 0.58;
+      s.setInput(input);
+      s.step();
+    }
+    for (let t = 0; t < 18; t++) {
+      const y = 0.58 - 0.24 * ((t + 1) / 18);
+      for (const side of hands) input[side].target.y = y;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    const lockedPeak = { ...s.dynoVector };
+    expect(lockedPeak.y).toBeGreaterThan(1.92);
+
+    // Release left hand at tick T, then release right hand at tick T + 26 (216ms later), even with slight right-hand drift.
+    input.left.grip = "release";
+    input.left.ready = false;
+    s.setInput(input);
+    for (let t = 0; t < 26; t++) {
+      input.right.target.y = 0.34 + 0.03 * ((t + 1) / 26);
+      s.setInput(input);
+      s.step();
+      expect(s.dynoReady).toBe(true);
+      expect(s.dynoCharge).toBe(1);
+    }
+    input.right.grip = "release";
+    input.right.ready = false;
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(true);
+    expect(s.dynoSource).toBe("push");
+    // After 1 physics tick of ballistic gravity (-9.81 * dt), velocity matches the full locked peak vector.
+    expect(s.rig.velocity().y).toBeGreaterThanOrEqual(
+      lockedPeak.y - 9.81 * s.dt - 1e-4,
+    );
+
+    const catchHold = s.route.holds.find((h) => h.id === "move-0")!;
+    for (let t = 0; t < 60 && !(s.contacts.left && s.contacts.right); t++) {
+      for (const side of hands) {
+        input[side].target = sub(
+          v(catchHold.p.x + (side === "left" ? -0.09 : 0.09), catchHold.p.y),
+          s.rig.shoulder(side),
+        );
+        input[side].grip = t < 15 ? "release" : "jug";
+        input[side].ready = t >= 15;
+      }
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.contacts.left?.hold.id).toBe("move-0");
+    expect(s.contacts.right?.hold.id).toBe("move-0");
+    expect(s.flew).toBe(true);
+  });
+  it("catches an overhead jug cleanly via the 12-tick airborne coyote buffer when closing 8 ticks (67ms) after sweep", () => {
+    const s = new Simulation(routes[0], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    // Release start holds and wait 16 ticks so cooldown === 0 while airborne.
+    for (const side of hands) {
+      input[side].grip = "release";
+      input[side].ready = false;
+    }
+    s.setInput(input);
+    for (let t = 0; t < 16; t++) s.step();
+    expect(s.contacts.left).toBeNull();
+    expect(s.contacts.right).toBeNull();
+    expect(s.cooldown.left).toBe(0);
+
+    const overhead = s.route.holds.find((h) => h.id === "move-0")!; // non-match jug at (-0.22, 1.36), radius 0.19
+    // Position airborne climber below move-0 moving upward, and sweep left hand across move-0 while still in "release".
+    s.rig.torso.setPosition(v(overhead.p.x + 0.19, overhead.p.y - 0.68));
+    s.rig.torso.setLinearVelocity(v(0, 0.9));
+    s.rig.legs.setPosition(v(overhead.p.x + 0.19, overhead.p.y - 1.43));
+    s.rig.legs.setLinearVelocity(v(0, 0.9));
+    input.left.target = sub(overhead.p, s.rig.shoulder("left"));
+    input.left.grip = "release";
+    input.left.ready = false;
+    input.right.target = v(0.25, 0.1);
+    input.right.grip = "release";
+    input.right.ready = false;
+    (s.rig as AnchorRig).sync(input, {});
+    s.setInput(input);
+    s.step();
+    expect(s.contacts.left).toBeNull();
+
+    // Overshoot left hand +0.095m above overhead rim (outside standard +0.025m patch tolerance, within +0.15m coyote buffer) for 7 ticks.
+    for (let t = 0; t < 7; t++) {
+      const outside = v(overhead.p.x, overhead.p.y + overhead.radius + 0.095);
+      input.left.target = sub(outside, s.rig.shoulder("left"));
+      s.setInput(input);
+      s.step();
+      expect(s.contacts.left).toBeNull();
+    }
+
+    // Tick T + 8 (67ms after sweep): finger closure completes -> grip = "jug", ready = true -> coyote catch attaches cleanly!
+    const outsideAtClose = v(
+      overhead.p.x,
+      overhead.p.y + overhead.radius + 0.095,
+    );
+    input.left.target = sub(outsideAtClose, s.rig.shoulder("left"));
+    input.left.grip = "jug";
+    input.left.ready = true;
+    s.setInput(input);
+    s.step();
+    expect(s.contacts.left?.hold.id).toBe("move-0");
+    expect(dist(s.contacts.left!.anchor, overhead.p)).toBeLessThanOrEqual(
+      overhead.radius + 1e-6,
+    );
   });
 });

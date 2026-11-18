@@ -82,22 +82,35 @@ describe("gesture transitions", () => {
       1,
     );
   });
-  it("needs independent fresh frames and elapsed confirmation time", () => {
+  it("confirms ambiguous transitions over >=2 frames & >=50ms while latching high-confidence release and catch in 1 frame", () => {
     const l = new GestureLatch();
-    expect(l.update("release", 0.9, 100)).toBe("unknown");
-    expect(l.update("release", 0.9, 100)).toBe("unknown");
-    expect(l.update("release", 0.9, 140)).toBe("unknown");
-    expect(l.update("release", 0.9, 180)).toBe("release");
+    // Ambiguous moderate-score release (0.40 <= score < 0.86, immediate = false) needs >=2 fresh frames & >=50ms.
+    expect(l.update("release", 0.65, 100)).toBe("unknown");
+    expect(l.update("release", 0.65, 100)).toBe("unknown");
+    expect(l.update("release", 0.65, 140)).toBe("unknown");
+    expect(l.update("release", 0.65, 160)).toBe("release");
+
+    // Instant 1-frame catch from "release" when score >= 0.80.
+    expect(l.update("jug", 0.85, 190)).toBe("jug");
+
+    // Static hang protection: 1-frame noisy grip-to-grip flicker ("jug" -> "pinch") does NOT switch on frame 1.
+    expect(l.update("pinch", 0.9, 220)).toBe("jug");
+    expect(l.update("jug", 0.9, 250)).toBe("jug");
+
+    // Instant 1-frame intentional release when score >= 0.86 or immediate = true.
+    expect(l.update("release", 0.9, 280)).toBe("release");
+    expect(l.update("crimp", 0.82, 310)).toBe("crimp");
+    expect(l.update("release", 0.7, 340, true)).toBe("release");
   });
   it("shows persistent uncertainty without converting it into a release", () => {
     const l = new GestureLatch();
-    l.update("jug", 0.9, 100);
+    expect(l.update("jug", 0.9, 100)).toBe("jug");
     expect(l.update("jug", 0.9, 180)).toBe("jug");
     expect(l.update("unknown", 0.1, 220)).toBe("jug");
     expect(l.update("unknown", 0.1, 300)).toBe("jug");
     expect(l.update("unknown", 0.1, 340)).toBe("unknown");
-    expect(l.update("release", 0.9, 380)).toBe("unknown");
-    expect(l.update("release", 0.9, 460)).toBe("release");
+    expect(l.update("release", 0.65, 380)).toBe("unknown");
+    expect(l.update("release", 0.65, 440)).toBe("release");
   });
   it("keeps incompatible calibrated shapes distinct and rejects ambiguous samples", () => {
     const a = Array(10).fill(0.1),
@@ -188,7 +201,7 @@ describe("holistic normalization and worker thresholds", () => {
 });
 
 describe("ready-intent continuity and camera frame pipeline", () => {
-  it("bridges <= 140ms hand-landmark dropouts while clearing on release or > 140ms occlusion", () => {
+  it("bridges <= 260ms hand-landmark motion-blur dropouts (down to 0.40 poseWrist visibility) while clearing on release or > 260ms occlusion", () => {
     const c = new Camera({} as HTMLVideoElement);
     const input = initialInputs();
     input.left.grip = "jug";
@@ -205,63 +218,66 @@ describe("ready-intent continuity and camera frame pipeline", () => {
     expect(c.currentInput!.left.ready).toBe(true);
     expect(c.currentInput!.left.orientation).toBe("down");
 
-    // 1-2 frame closed-fist dropout (70ms and 135ms <= 140ms) with pose wrist still tracked.
+    // Multi-frame fast-pull motion-blur dropout (70ms..240ms <= 260ms) with dipped poseWrist.visibility = 0.42 (> 0.38)
+    // and extrapolated poseWrist.y = 1.12 clamped safely into [0.005, 0.995].
     const drop1 = structuredClone(obs2);
     drop1.sequence = 3;
     drop1.t = 250;
     drop1.detections = [obs2.detections[1]];
+    drop1.pose[15].visibility = 0.42;
+    drop1.pose[15].y = 1.12;
     c.process(drop1);
     expect(c.currentInput!.left.quality).toBe(true);
     expect(c.currentInput!.left.grip).toBe("jug");
     expect(c.currentInput!.left.ready).toBe(true);
     expect(c.currentInput!.left.orientation).toBe("down");
+    expect(Number.isFinite(c.currentInput!.left.target.y)).toBe(true);
 
     const drop2 = structuredClone(drop1);
     drop2.sequence = 4;
-    drop2.t = 315;
+    drop2.t = 410;
     c.process(drop2);
+    expect(c.currentInput!.left.quality).toBe(true);
     expect(c.currentInput!.left.grip).toBe("jug");
     expect(c.currentInput!.left.ready).toBe(true);
 
-    // Reappearing at 140ms keeps continuous ready without a re-latch gap.
+    // Reappearing at <= 260ms keeps continuous ready without a re-latch gap.
     const recover = structuredClone(obs2);
     recover.sequence = 5;
-    recover.t = 320;
+    recover.t = 430;
     c.process(recover);
     expect(c.currentInput!.left.grip).toBe("jug");
     expect(c.currentInput!.left.ready).toBe(true);
 
-    // Persistent dropout beyond 140ms transitions visibly to unknown with ready: false.
+    // Persistent dropout beyond 260ms transitions visibly to unknown with ready: false.
     const long1 = structuredClone(drop1);
     long1.sequence = 6;
-    long1.t = 380;
+    long1.t = 500;
     c.process(long1);
     expect(c.currentInput!.left.ready).toBe(true);
     const long2 = structuredClone(drop1);
     long2.sequence = 7;
-    long2.t = 490;
+    long2.t = 710;
     c.process(long2);
     expect(c.currentInput!.left.grip).toBe("unknown");
     expect(c.currentInput!.left.ready).toBe(false);
 
-    // Immediate clear on explicit release frame.
-    const reJug1 = structuredClone(obs2);
-    reJug1.sequence = 8;
-    reJug1.t = 560;
-    c.process(reJug1);
-    const reJug2 = structuredClone(obs2);
-    reJug2.sequence = 9;
-    reJug2.t = 640;
-    c.process(reJug2);
+    // Immediate 1-frame clear on explicit release frame.
+    const reJug = structuredClone(obs2);
+    reJug.sequence = 8;
+    reJug.t = 760;
+    c.process(reJug);
+    expect(c.currentInput!.left.grip).toBe("jug");
     expect(c.currentInput!.left.ready).toBe(true);
 
     input.left.grip = "release";
-    const rel = observation(input, 10, 680);
+    const rel = observation(input, 9, 800);
     c.process(rel);
+    expect(c.currentInput!.left.grip).toBe("release");
     expect(c.currentInput!.left.ready).toBe(false);
     const afterRelDrop = structuredClone(rel);
-    afterRelDrop.sequence = 11;
-    afterRelDrop.t = 720;
+    afterRelDrop.sequence = 10;
+    afterRelDrop.t = 840;
     afterRelDrop.detections = [];
     c.process(afterRelDrop);
     expect(c.currentInput!.left.ready).toBe(false);
@@ -555,5 +571,93 @@ describe("upstream gesture classifier and assisted grips", () => {
     cam.process(observation(input, 1, 100));
     expect(cam.classScores.left.pinch - cam.classScores.left.jug).toBeGreaterThanOrEqual(0.25);
     expect(cam.classScores.right.crimp - cam.classScores.right.jug).toBeGreaterThanOrEqual(0.25);
+  });
+
+  it("latches rapid fist uncurling and simultaneous dual-hand dyno release in 1 frame (0ms lag) and catches airborne grips in 1 frame", () => {
+    const cam = new Camera({} as HTMLVideoElement);
+    const input = initialInputs();
+    input.left.grip = "jug";
+    input.right.grip = "jug";
+    cam.process(observation(input, 1, 100));
+    expect(cam.currentInput!.left.grip).toBe("jug");
+    expect(cam.currentInput!.left.ready).toBe(true);
+    expect(cam.currentInput!.right.grip).toBe("jug");
+    expect(cam.currentInput!.right.ready).toBe(true);
+
+    // Build a mid-uncurl left hand (~53% uncurled, foreshortened in 2D so compact < 1.32)
+    // to exercise the velocity-aware prevShape uncurling promoter directly on frame 2 (dt = 33ms).
+    const obsUncurl = observation(input, 2, 133);
+    const wristL = obsUncurl.pose[15];
+    const u = 0.54;
+    const angles = [65 * (1 - u), 100 * (1 - u), 60 * (1 - u)];
+    const positions = [-0.5, -0.16, 0.18, 0.5],
+      bases = [1.1, 1.25, 1.17, 1.0];
+    const pts = Array.from({ length: 21 }, () => ({
+      x: wristL.x,
+      y: wristL.y,
+      z: 0,
+    }));
+    for (let finger = 0; finger < 4; finger++) {
+      const base = 5 + finger * 4;
+      let y = bases[finger] * 0.76,
+        z = 0,
+        ang = 0;
+      pts[base] = {
+        x: wristL.x + positions[finger] * 0.055,
+        y: wristL.y - (y * 0.055 * 960) / 540,
+        z: 0,
+      };
+      for (let joint = 0; joint < 3; joint++) {
+        ang += (angles[joint] * Math.PI) / 180;
+        const length = [0.55, 0.35, 0.25][joint] * (finger === 3 ? 0.8 : 1) * 0.76;
+        y += Math.cos(ang) * length;
+        z += Math.sin(ang) * length;
+        const splay = positions[finger] * 0.08 * (joint + 1) * 0.055;
+        pts[base + joint + 1] = {
+          x: pts[base].x + splay,
+          y: wristL.y - (y * 0.055 * 960) / 540,
+          z: -z * 0.055,
+        };
+      }
+    }
+    pts[1] = { x: wristL.x - 0.4 * 0.055, y: wristL.y - (0.3 * 0.055 * 960) / 540, z: 0 };
+    pts[2] = { x: wristL.x - 0.8 * 0.055, y: wristL.y - (0.55 * 0.055 * 960) / 540, z: 0 };
+    pts[3] = { x: wristL.x - 1.0 * 0.055, y: wristL.y - (0.78 * 0.055 * 960) / 540, z: 0 };
+    pts[4] = { x: wristL.x - 1.25 * 0.055, y: wristL.y - (0.9 * 0.055 * 960) / 540, z: 0 };
+    obsUncurl.detections[0].points = pts;
+
+    cam.process(obsUncurl);
+    expect(cam.currentInput!.left.grip).toBe("release");
+    expect(cam.currentInput!.left.ready).toBe(false);
+    expect(cam.currentInput!.right.grip).toBe("jug");
+
+    // 1-frame instant airborne catch from "release" -> "jug", "crimp", and "pinch".
+    for (const [idx, catchGrip] of (["jug", "crimp", "pinch"] as const).entries()) {
+      const tBase = 200 + idx * 100;
+      input.left.grip = "release";
+      input.right.grip = "release";
+      cam.process(observation(input, 10 + idx * 2, tBase));
+      expect(cam.currentInput!.left.grip).toBe("release");
+      expect(cam.currentInput!.left.ready).toBe(false);
+      expect(cam.currentInput!.right.grip).toBe("release");
+      expect(cam.currentInput!.right.ready).toBe(false);
+
+      input.left.grip = catchGrip;
+      input.right.grip = catchGrip;
+      cam.process(observation(input, 11 + idx * 2, tBase + 33));
+      expect(cam.currentInput!.left.grip).toBe(catchGrip);
+      expect(cam.currentInput!.left.ready).toBe(true);
+      expect(cam.currentInput!.right.grip).toBe(catchGrip);
+      expect(cam.currentInput!.right.ready).toBe(true);
+    }
+
+    // Simultaneous two-hand dyno release latches BOTH hands on Frame 1 with zero stagger.
+    input.left.grip = "release";
+    input.right.grip = "release";
+    cam.process(observation(input, 30, 600));
+    expect(cam.currentInput!.left.grip).toBe("release");
+    expect(cam.currentInput!.right.grip).toBe("release");
+    expect(cam.currentInput!.left.ready).toBe(false);
+    expect(cam.currentInput!.right.ready).toBe(false);
   });
 });

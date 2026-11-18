@@ -90,6 +90,7 @@ describe("independent camera input protection", () => {
     expect(r.input.right.target.x).toBe(0.5);
     expect(r.input.left.quality).toBe(false);
     expect(r.input.left.grip).toBe("jug");
-    expect(g.accept(input, 700).pause).toBe(true);
+    expect(g.accept(input, 700).pause).toBe(false);
+    expect(g.accept(input, 1100).pause).toBe(true);
   });
 });
