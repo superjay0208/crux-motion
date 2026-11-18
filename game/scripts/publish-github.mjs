@@ -7,6 +7,9 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 const user = "superjay0208";
 const repo = "crux-motion";
 const remote = `https://github.com/${user}/${repo}.git`;
+const expectedHomepage = `https://${user}.github.io/${repo}/`;
+const expectedDescription =
+  "Crux Motion: a local camera-controlled 2D physics campus climbing game.";
 
 const safeRoot = root.replace(/\\/g, "/");
 
@@ -39,7 +42,7 @@ const verifyPrivacyGate = () => {
     .filter(
       (f) =>
         f &&
-        /(^|\/)(personal-recordings|\.analysis-tools|\.npm-cache|research\/upstream)(\/|$)/i.test(
+        /(^|\/)(personal-recordings|\.analysis-tools|\.npm-cache|research\/upstream|\.release)(\/|$)/i.test(
           f,
         ),
     );
@@ -103,6 +106,8 @@ const api = async (endpoint, method = "GET", body, allow404 = false) => {
   return data;
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const identity = await api("/user");
 if (identity.login.toLowerCase() !== user) {
   throw new Error(`Signed in as ${identity.login}; expected ${user}.`);
@@ -110,6 +115,9 @@ if (identity.login.toLowerCase() !== user) {
 
 if (!process.argv.includes("--publish")) {
   const repository = await api(`/repos/${user}/${repo}`, "GET", undefined, true);
+  const site = repository
+    ? await api(`/repos/${user}/${repo}/pages`, "GET", undefined, true)
+    : null;
   const runs = repository
     ? await api(`/repos/${user}/${repo}/actions/runs?per_page=3`)
     : { workflow_runs: [] };
@@ -118,6 +126,8 @@ if (!process.argv.includes("--publish")) {
       {
         login: identity.login,
         repository: repository?.html_url ?? null,
+        homepage: repository?.homepage || null,
+        pages: site?.html_url ?? null,
         privacyGate: "ok",
         runs: (runs.workflow_runs ?? []).map((r) => ({
           id: r.id,
@@ -133,23 +143,27 @@ if (!process.argv.includes("--publish")) {
   );
 } else {
   verifyPrivacyGate();
-  const head = run(["rev-parse", "--verify", "HEAD"]);
-  if (run(["diff", "--cached", "--name-only"])) {
-    throw new Error(
-      "Staged files have uncommitted changes; commit the reviewed milestone before publishing.",
-    );
+  if (run(["status", "--porcelain"])) {
+    throw new Error("Commit the reviewed release before publishing.");
   }
+  const head = run(["rev-parse", "--verify", "HEAD"]);
   let repository = await api(`/repos/${user}/${repo}`, "GET", undefined, true);
   if (!repository) {
     repository = await api("/user/repos", "POST", {
       name: repo,
       private: false,
-      description:
-        "Crux Motion: a local camera-controlled 2D physics campus climbing game.",
+      description: expectedDescription,
+      homepage: expectedHomepage,
       has_wiki: false,
       auto_init: false,
     });
+  } else if (!repository.homepage || !repository.description) {
+    repository = await api(`/repos/${user}/${repo}`, "PATCH", {
+      homepage: repository.homepage || expectedHomepage,
+      description: repository.description || expectedDescription,
+    });
   }
+
   const remotes = run(["remote"])
     .split(/\r?\n/)
     .filter(Boolean);
@@ -158,19 +172,58 @@ if (!process.argv.includes("--publish")) {
   } else if (run(["remote", "get-url", "origin"]) !== remote) {
     throw new Error("Unexpected origin; refusing to publish.");
   }
+
   const refs = run(["ls-remote", "--heads", "origin", "main"]);
   if (refs) {
     run(["fetch", "origin", "main"]);
     run(["merge-base", "--is-ancestor", "origin/main", "HEAD"]);
   }
   run(["push", "-u", "origin", "main"]);
+
+  const pages = await api(`/repos/${user}/${repo}/pages`, "GET", undefined, true);
+  if (!pages) {
+    await api(`/repos/${user}/${repo}/pages`, "POST", {
+      build_type: "workflow",
+    });
+  } else if (pages.build_type !== "workflow") {
+    throw new Error(
+      `Existing Pages configuration differs (${pages.build_type}); review before changing.`,
+    );
+  }
+
+  // Pages must exist before configure-pages runs; wait briefly if GitHub is still indexing pages.yml.
+  let workflowReady = false;
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const wf = await api(
+      `/repos/${user}/${repo}/actions/workflows/pages.yml`,
+      "GET",
+      undefined,
+      true,
+    );
+    if (wf) {
+      workflowReady = true;
+      break;
+    }
+    await sleep(1500);
+  }
+  if (!workflowReady) {
+    throw new Error("pages.yml workflow not indexed on GitHub after push.");
+  }
+  await api(
+    `/repos/${user}/${repo}/actions/workflows/pages.yml/dispatches`,
+    "POST",
+    { ref: "main" },
+  );
+
   console.log(
     JSON.stringify(
       {
         repository: repository.html_url,
+        pages: expectedHomepage,
         branch: "main",
         commit: head,
         pushed: true,
+        dispatched: true,
       },
       null,
       2,

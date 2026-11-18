@@ -35,6 +35,9 @@ export class Renderer {
   private strainTick = { left: -1, right: -1 };
   private seen = 0;
   private trail: V[] = [];
+  private bgGradient: CanvasGradient | null = null;
+  private bgW = 0;
+  private bgH = 0;
   readonly view = new FollowCamera();
   constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
@@ -54,6 +57,9 @@ export class Renderer {
   resize() {
     const r = this.canvas.getBoundingClientRect(),
       dpr = Math.min(devicePixelRatio || 1, 2);
+    if (this.w !== r.width || this.h !== r.height) {
+      this.bgGradient = null;
+    }
     this.w = r.width;
     this.h = r.height;
     if (
@@ -99,29 +105,46 @@ export class Renderer {
     this.scale = this.view.scale;
     this.origin = this.view.origin;
     ctx.clearRect(0, 0, this.w, this.h);
-    const bg = ctx.createLinearGradient(0, 0, this.w, this.h);
-    bg.addColorStop(0, "#1d3036");
-    bg.addColorStop(1, "#13252c");
-    ctx.fillStyle = bg;
+    if (!this.bgGradient || this.bgW !== this.w || this.bgH !== this.h) {
+      const bg = ctx.createLinearGradient(0, 0, this.w, this.h);
+      bg.addColorStop(0, "#1d3036");
+      bg.addColorStop(1, "#13252c");
+      this.bgGradient = bg;
+      this.bgW = this.w;
+      this.bgH = this.h;
+    }
+    ctx.fillStyle = this.bgGradient;
     ctx.fillRect(0, 0, this.w, this.h);
     // Wall panels, seams and bolt pattern are procedural, with no raster assets.
     ctx.strokeStyle = "#ffffff06";
     ctx.lineWidth = 1;
+    ctx.beginPath();
     for (let x = -3; x < 3; x += 0.85) {
       const p = this.toScreen(v(x, 0));
-      ctx.beginPath();
       ctx.moveTo(p.x - 40, 0);
       ctx.lineTo(p.x + 35, this.h);
-      ctx.stroke();
     }
-    for (let x = -2.3; x < 2.4; x += 0.22)
-      for (let y = -2; y < 5; y += 0.25) {
+    ctx.stroke();
+    const worldMin = this.toWorld(v(-2, this.h + 2)),
+      worldMax = this.toWorld(v(this.w + 2, -2)),
+      minX =
+        -2.3 +
+        Math.max(0, Math.ceil((Math.max(-2.3, worldMin.x) + 2.3) / 0.22)) *
+          0.22,
+      maxX = Math.min(2.4, worldMax.x),
+      minY =
+        -2 +
+        Math.max(0, Math.ceil((Math.max(-2, worldMin.y) + 2) / 0.25)) * 0.25,
+      maxY = Math.min(5, worldMax.y);
+    ctx.fillStyle = "#c8dfd312";
+    ctx.beginPath();
+    for (let x = minX; x < maxX; x += 0.22)
+      for (let y = minY; y < maxY; y += 0.25) {
         const p = this.toScreen(v(x, y));
-        ctx.fillStyle = "#c8dfd312";
-        ctx.beginPath();
+        ctx.moveTo(p.x + 1.3, p.y);
         ctx.arc(p.x, p.y, 1.3, 0, Math.PI * 2);
-        ctx.fill();
       }
+    ctx.fill();
     // A quiet contour motif gives the wall depth without crowding contact cues.
     ctx.save();
     ctx.globalAlpha = 0.15;

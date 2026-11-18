@@ -1,0 +1,109 @@
+{
+  "url": "http://127.0.0.1:58160/crux-motion/",
+  "mode": "subpath",
+  "recordedAt": "2026-11-18T01:54:11.844Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+  "runtimeHygiene": {
+    "pageErrors": 0,
+    "consoleErrors": 0,
+    "httpErrors": 0,
+    "externalRequests": 0
+  },
+  "initialLoad": {
+    "domContentLoadedMs": 78.9,
+    "loadEventMs": 151.8,
+    "fcpMs": 320,
+    "requestsCount": 6,
+    "transferBytes": 497296,
+    "responseBodyBytes": 495496,
+    "heavyCameraAssetsOnLanding": 0,
+    "displayFontLoaded": true,
+    "subpathSolutionCheck": {
+      "ok": true,
+      "status": 200,
+      "route": "motion-01",
+      "controller": "anchors",
+      "frames": 82
+    },
+    "wallDemoTickAttr": "15",
+    "wallCaption": "01 / JUG LADDERReach · Catch · Match"
+  },
+  "performance": {
+    "introShowcase180Frames": {
+      "frames": 180,
+      "elapsedMs": 1175,
+      "simTicksAdvanced": 143,
+      "fps": 153.19,
+      "frameDeltaP50Ms": 6.1,
+      "frameDeltaP95Ms": 6.2,
+      "frameDeltaMaxMs": 18.2,
+      "frameWorkMeanMs": 0.73,
+      "frameWorkP50Ms": 0.7,
+      "frameWorkP95Ms": 1,
+      "longTasksCount": 0,
+      "longTasksMaxMs": 0
+    },
+    "practiceClimb180Frames": {
+      "frames": 180,
+      "elapsedMs": 1095,
+      "simTicksAdvanced": 131,
+      "fps": 164.38,
+      "frameDeltaP50Ms": 6.1,
+      "frameDeltaP95Ms": 6.1,
+      "frameDeltaMaxMs": 6.2,
+      "frameWorkMeanMs": 0.96,
+      "frameWorkP50Ms": 1,
+      "frameWorkP95Ms": 1.2,
+      "longTasksCount": 0,
+      "longTasksMaxMs": 0
+    }
+  },
+  "features": {
+    "routeModalSwitch": {
+      "index": 1,
+      "name": "Cross Current"
+    },
+    "assistedPersistenceReload": true,
+    "deepLinkMotion09": {
+      "route": 8,
+      "routeName": "First Flight"
+    }
+  },
+  "diagnostics": {
+    "url": "http://127.0.0.1:58160/crux-motion/diagnostics.html",
+    "reports": [
+      {
+        "provider": "paired",
+        "frames": 5,
+        "initializationAndRunMs": 4856.10000000149,
+        "inferenceMs": [
+          4485.400000002235,
+          19.899999998509884,
+          18,
+          17.600000001490116,
+          17.599999997764826
+        ],
+        "detectedHands": 0,
+        "pass": true,
+        "delegate": "GPU",
+        "steadyStateMeanMs": 18.27
+      },
+      {
+        "provider": "holistic",
+        "frames": 5,
+        "initializationAndRunMs": 2424.099999997765,
+        "inferenceMs": [
+          2147.800000000745,
+          10.899999998509884,
+          10.399999998509884,
+          9.700000002980232,
+          10
+        ],
+        "detectedHands": 0,
+        "pass": true,
+        "delegate": "GPU",
+        "steadyStateMeanMs": 10.25
+      }
+    ]
+  }
+}

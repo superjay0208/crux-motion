@@ -24,6 +24,7 @@ import {
   TestRecorder,
   testPrompt,
   testIsPreparing,
+  isLocalRecordingServer,
   type TestScenario,
 } from "./debug/Recorder";
 import type { TestFrame, TestHand } from "./debug/analysis";
@@ -56,8 +57,37 @@ let recordedSim: Simulation | null = null;
 let recordedEvent = 0;
 let reviewVideoUrl = "";
 canvas.tabIndex = 0;
-let index = 0,
-  sim = new Simulation(routes[0]),
+function parseRouteParam(raw: string | null): number | null {
+  if (!raw) return null;
+  const cleaned = raw.trim().toLowerCase();
+  const byId = routes.findIndex((r) => r.id.toLowerCase() === cleaned);
+  if (byId >= 0) return byId;
+  if (/^\d+$/.test(cleaned)) {
+    const n = Number(cleaned);
+    if (n >= 1 && n <= routes.length) return n - 1;
+  }
+  return null;
+}
+const initialUrlParams = new URLSearchParams(location.search);
+const deepLinkRoute = parseRouteParam(initialUrlParams.get("route"));
+const deepLinkMode = initialUrlParams.get("mode")?.trim().toLowerCase() ?? "";
+const baseShowcaseIds = ["motion-01", "motion-02", "motion-09"];
+const introPlaylist =
+  deepLinkRoute !== null
+    ? [
+        routes[deepLinkRoute].id,
+        ...baseShowcaseIds.filter((id) => id !== routes[deepLinkRoute].id),
+      ]
+    : [...baseShowcaseIds];
+const introDemoCache = new Map<string, Replay>();
+let introPlaylistPos = 0,
+  introReplay: Replay | null = null,
+  introReplayCursor = 0,
+  introHoldElapsed = 0,
+  introLoading = false,
+  introGen = 0;
+let index = deepLinkRoute ?? 0,
+  sim = new Simulation(routes[index]),
   selected: Hand = "left",
   grip: Grip = "jug",
   mode: "intro" | "practice" | "camera" = "intro",
@@ -244,7 +274,7 @@ function persist() {
 }
 function showModal(html: string) {
   cancelHandsFree();
-  sim.pause();
+  if (mode !== "intro") sim.pause();
   el("modal-content").innerHTML = html;
   el<HTMLDialogElement>("modal").showModal();
 }
@@ -267,7 +297,85 @@ el<HTMLDialogElement>("modal").addEventListener("close", () => {
   if (mode === "camera" && camera.running)
     el("camera-preview").append(camera.video);
 });
+function updateIntroCaption(routeIdx: number) {
+  const r = routes[routeIdx];
+  el("wall-caption").innerHTML =
+    `<span class="tiny-tag">${String(routeIdx + 1).padStart(2, "0")} / ${r.name.toUpperCase()}</span><span>${r.subtitle}</span>`;
+  el("wall-caption").classList.toggle("hidden", mode !== "intro");
+  if (mode === "intro") {
+    el("wall-label").textContent = "THE MOVEMENT LAB";
+    el("wall-top-right").textContent = "LIVE PHYSICS / 120 HZ";
+  }
+}
+function setIntroStaticPose(routeIdx: number) {
+  introReplay = null;
+  introReplayCursor = 0;
+  introHoldElapsed = 0;
+  introLoading = false;
+  sim = new Simulation(routes[routeIdx]);
+  sim.fatigue = false;
+  sim.start();
+  lastSeen = 0;
+  lastState = "";
+  renderer.ghost = null;
+  renderer.reset();
+  accumulator = 0;
+  canvas.dataset.demoTick = "0";
+  updateIntroCaption(routeIdx);
+}
+async function loadIntroShowcase(pos: number) {
+  const gen = ++introGen;
+  introPlaylistPos =
+    ((pos % introPlaylist.length) + introPlaylist.length) % introPlaylist.length;
+  const routeId = introPlaylist[introPlaylistPos];
+  const routeIdx = routes.findIndex((r) => r.id === routeId);
+  if (routeIdx < 0 || mode !== "intro") return;
+  if (save.reduced) {
+    setIntroStaticPose(index);
+    return;
+  }
+  introLoading = true;
+  updateIntroCaption(routeIdx);
+  try {
+    let recorded = introDemoCache.get(routeId);
+    if (!recorded) {
+      const response = await fetch(
+        `${import.meta.env.BASE_URL}solutions/${routeId}.json`,
+      );
+      if (!response.ok) throw new Error("Showcase unavailable");
+      recorded = validateReplay(await response.json());
+      introDemoCache.set(routeId, recorded);
+    }
+    if (gen !== introGen || mode !== "intro" || save.reduced) return;
+    introReplay = recorded;
+    introReplayCursor = 0;
+    introHoldElapsed = 0;
+    introLoading = false;
+    sim = new Simulation(
+      routes[routeIdx],
+      "intro-demo",
+      recorded.controller ?? "anchors",
+    );
+    sim.fatigue = true;
+    sim.start();
+    lastSeen = 0;
+    lastState = "";
+    renderer.ghost = null;
+    renderer.reset();
+    accumulator = 0;
+    canvas.dataset.demoTick = "0";
+    updateIntroCaption(routeIdx);
+  } catch {
+    if (gen !== introGen || mode !== "intro") return;
+    introLoading = false;
+    setIntroStaticPose(routeIdx);
+  }
+}
 function enter(next: "camera" | "practice") {
+  introGen++;
+  introReplay = null;
+  introLoading = false;
+  delete canvas.dataset.demoTick;
   mode = next;
   el("intro").classList.add("hidden");
   el("play-panel").classList.remove("hidden");
@@ -1173,9 +1281,10 @@ document.querySelector(".wordmark")!.addEventListener("click", (e) => {
   document.body.classList.remove("playing");
   el("intro").classList.remove("hidden");
   el("play-panel").classList.add("hidden");
-  loadRoute(0);
-  sim.fatigue = false;
-  sim.start();
+  el("game-overlay").classList.add("hidden");
+  index = deepLinkRoute ?? 0;
+  setIntroStaticPose(index);
+  if (!save.reduced) void loadIntroShowcase(0);
 });
 function routeMenu() {
   showModal(
@@ -1442,7 +1551,7 @@ async function beginRecordedTest(scenario: TestScenario) {
       URL.revokeObjectURL(reviewVideoUrl);
       reviewVideoUrl = "";
     }
-    const build = await fetch("build-info.json")
+    const build = await fetch(`${import.meta.env.BASE_URL}build-info.json`)
       .then((r) => r.json())
       .catch(() => null);
     let sound: MediaStream | undefined;
@@ -1482,10 +1591,16 @@ testRecorder.onChange = () => {
   el<HTMLButtonElement>("stop-recording").disabled = testRecorder.saving;
   recordButton.disabled = testRecorder.active || testRecorder.saving;
   if (testRecorder.saving) {
-    text("recording-clock", "Saving locally…");
+    const localSave = isLocalRecordingServer();
+    text(
+      "recording-clock",
+      localSave ? "Saving locally…" : "Processing locally…",
+    );
     text(
       "recording-prompt",
-      "Keep this tab open while the video and diagnostics are saved.",
+      localSave
+        ? "Keep this tab open while the video and diagnostics are saved."
+        : "Keep this tab open while the video and diagnostics are prepared.",
     );
   }
 };
@@ -1496,11 +1611,14 @@ testRecorder.onFinished = (result) => {
     '<div class="eyebrow">RECORDED PLAY TEST</div><h2>Now we can inspect it.</h2><video id="test-review-video" class="test-review-video" controls playsinline></video><p id="test-save-location"></p><p id="test-summary"></p><div id="test-findings"></div><p class="fine-print">Flags are observations to review in the video, not confirmed diagnoses.</p><button class="secondary" id="download-test-video">Download video</button><button class="secondary" id="download-test-data">Download diagnostics</button><button class="primary" id="repeat-recorded-test">Record another test →</button>',
   );
   el<HTMLVideoElement>("test-review-video").src = reviewVideoUrl;
+  const isLocalServer = isLocalRecordingServer();
   text(
     "test-save-location",
     result.saved
       ? `Saved locally: ${result.saved}`
-      : "Automatic save was unavailable. Use the download buttons to keep both files.",
+      : isLocalServer
+        ? "Automatic save was unavailable. Use the download buttons to keep both files."
+        : "Processed locally in your browser. Use the download buttons below to save the video and diagnostics.",
   );
   text(
     "test-summary",
@@ -1982,6 +2100,11 @@ function hud() {
 let wasSwaying = false;
 let ghostStride = 8;
 function frame(t: number) {
+  if (mode === "intro" && document.hidden) {
+    last = t;
+    requestAnimationFrame(frame);
+    return;
+  }
   if (t - last > 250 && sim.state === "playing" && mode !== "intro" && !review) {
     if (mode === "camera") recoverCamera("Game frames delayed");
     else sim.pause("Processing paused. Resume when you are ready.");
@@ -2025,9 +2148,19 @@ function frame(t: number) {
   }
   updateCalibration(t);
   updateCameraStart(t);
-  if (!review) sim.setInput(inputs);
+  if (mode !== "intro" && !review) sim.setInput(inputs);
   accumulator += dt;
   while (accumulator >= sim.dt) {
+    if (mode === "intro" && introReplay && !save.reduced) {
+      if (sim.state === "playing" && sim.tick < introReplay.duration) {
+        while (introReplay.frames[introReplayCursor]?.tick <= sim.tick) {
+          sim.setInput(introReplay.frames[introReplayCursor++].input);
+        }
+        sim.step();
+      }
+      accumulator -= sim.dt;
+      continue;
+    }
     if (review && replay) {
       while (replay.frames[replayIndex]?.tick <= sim.tick) {
         sim.setInput(replay.frames[replayIndex++].input);
@@ -2070,15 +2203,34 @@ function frame(t: number) {
     }
     accumulator -= sim.dt;
   }
-  for (const e of sim.events)
-    if (e.id > lastSeen) {
-      lastSeen = e.id;
-      if (e.kind === "catch" && sim.visited.size > seenVisited) {
-        seenVisited = sim.visited.size;
-        lastCheckpoint = sim.tick;
+  if (mode === "intro" && introReplay && !save.reduced) {
+    if (canvas.dataset.demoTick !== String(sim.tick)) {
+      canvas.dataset.demoTick = String(sim.tick);
+    }
+    if (
+      !introLoading &&
+      (sim.state === "finished" ||
+        sim.state === "fallen" ||
+        sim.tick >= introReplay.duration)
+    ) {
+      introHoldElapsed += dt;
+      if (introHoldElapsed >= 1.2) {
+        introHoldElapsed = 0;
+        void loadIntroShowcase(introPlaylistPos + 1);
       }
     }
-  audio.play(sim.events);
+  }
+  if (mode !== "intro") {
+    for (const e of sim.events)
+      if (e.id > lastSeen) {
+        lastSeen = e.id;
+        if (e.kind === "catch" && sim.visited.size > seenVisited) {
+          seenVisited = sim.visited.size;
+          lastCheckpoint = sim.tick;
+        }
+      }
+    audio.play(sim.events);
+  }
   renderer.ghost =
     save.ghost !== false &&
     !save.reduced &&
@@ -2117,8 +2269,12 @@ function frame(t: number) {
   }
   requestAnimationFrame(frame);
 }
-sim.fatigue = false;
-sim.start();
+if (deepLinkMode === "practice") {
+  enter("practice");
+} else {
+  setIntroStaticPose(index);
+  if (!save.reduced) void loadIntroShowcase(0);
+}
 requestAnimationFrame(frame);
 // Read-only diagnostics for integration tests and local troubleshooting.
 Object.defineProperty(window, "cruxMotion", {

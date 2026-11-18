@@ -1,5 +1,8 @@
 import { analyzeTest, type TestFrame } from "./analysis";
 export type TestScenario = "reach" | "cross" | "dyno" | "swing" | "centering";
+export const isLocalRecordingServer = () =>
+  typeof location === "undefined" ||
+  ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
 export const testIsPreparing = (
   active: boolean,
   started: number,
@@ -305,33 +308,36 @@ export class TestRecorder {
       frames: this.frames,
     };
     let saved: string | null = null;
-    try {
-      const start = await fetch("api/recordings/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenario: this.scenario }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!start.ok) throw new Error("Local saving unavailable");
-      const { id, token } = await start.json();
-      const headers = { "X-Recording-Token": token };
-      const v = await fetch(`api/recordings/${id}/video`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "video/webm" },
-        body: video,
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!v.ok) throw new Error("Video could not save");
-      const t = await fetch(`api/recordings/${id}/telemetry`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!t.ok) throw new Error("Telemetry could not save");
-      saved = (await t.json()).folder;
-    } catch {
-      /* Keep both blobs available for explicit downloads in the review. */
+    const isLocalServer = isLocalRecordingServer();
+    if (isLocalServer) {
+      try {
+        const start = await fetch("api/recordings/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scenario: this.scenario }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!start.ok) throw new Error("Local saving unavailable");
+        const { id, token } = await start.json();
+        const headers = { "X-Recording-Token": token };
+        const v = await fetch(`api/recordings/${id}/video`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "video/webm" },
+          body: video,
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!v.ok) throw new Error("Video could not save");
+        const t = await fetch(`api/recordings/${id}/telemetry`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!t.ok) throw new Error("Telemetry could not save");
+        saved = (await t.json()).folder;
+      } catch {
+        /* Keep both blobs available for explicit downloads in the review. */
+      }
     }
     this.chunks = [];
     this.frames = [];

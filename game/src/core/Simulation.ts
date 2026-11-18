@@ -6,7 +6,9 @@ import { add, sub, mul, len, dist, closest, clamp, v, type V } from "./math";
 import {
   hands,
   initialInputs,
+  type ArmMotion,
   type Hand,
+  type Intent,
   type Inputs,
   type Hold,
   type Route,
@@ -14,6 +16,47 @@ import {
   type Replay,
   gripFits,
 } from "./types";
+const armEqual = (a?: ArmMotion, b?: ArmMotion) =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.upper === b.upper &&
+    a.elbow === b.elbow &&
+    a.upperVelocity === b.upperVelocity &&
+    a.elbowVelocity === b.elbowVelocity);
+const intentEqual = (a: Intent, b: Intent) =>
+  a.target.x === b.target.x &&
+  a.target.y === b.target.y &&
+  a.grip === b.grip &&
+  a.ready === b.ready &&
+  a.orientation === b.orientation &&
+  a.quality === b.quality &&
+  a.bend === b.bend &&
+  armEqual(a.arm, b.arm);
+const inputsEqual = (a: Inputs, b: Inputs) =>
+  intentEqual(a.left, b.left) && intentEqual(a.right, b.right);
+const cloneIntent = (i: Intent): Intent => ({
+  target: { x: i.target.x, y: i.target.y },
+  grip: i.grip,
+  ready: i.ready,
+  orientation: i.orientation,
+  quality: i.quality,
+  bend: i.bend,
+  ...(i.arm
+    ? {
+        arm: {
+          upper: i.arm.upper,
+          elbow: i.arm.elbow,
+          upperVelocity: i.arm.upperVelocity,
+          elbowVelocity: i.arm.elbowVelocity,
+        },
+      }
+    : {}),
+});
+export const cloneInputs = (input: Inputs): Inputs => ({
+  left: cloneIntent(input.left),
+  right: cloneIntent(input.right),
+});
 type Contact = {
   hold: Hold;
   anchor: V;
@@ -51,7 +94,7 @@ export class Simulation {
   assisted = false;
   time = 0;
   frames: Replay["frames"] = [];
-  private lastInput = "";
+  private lastInput: Inputs | null = null;
   lastCause = "";
   private recentReleases: { id: string; tick: number }[] = [];
   private launchHolds = new Set<string>();
@@ -90,11 +133,9 @@ export class Simulation {
   }
   setInput(input: Inputs) {
     for (const side of hands)
-      if (
-        JSON.stringify(input[side].arm) !== JSON.stringify(this.input[side].arm)
-      )
+      if (!armEqual(input[side].arm, this.input[side].arm))
         this.armFrameTick[side] = this.tick;
-    this.input = structuredClone(input);
+    this.input = cloneInputs(input);
   }
   start() {
     if (this.state === "ready" || this.state === "paused") {
@@ -312,10 +353,10 @@ export class Simulation {
   }
   step() {
     if (this.state !== "playing") return;
-    const encoded = JSON.stringify(this.input);
-    if (encoded !== this.lastInput) {
-      this.frames.push({ tick: this.tick, input: structuredClone(this.input) });
-      this.lastInput = encoded;
+    if (!this.lastInput || !inputsEqual(this.input, this.lastInput)) {
+      const snapshot = cloneInputs(this.input);
+      this.frames.push({ tick: this.tick, input: snapshot });
+      this.lastInput = cloneInputs(snapshot);
     }
     this.tick++;
     this.time += this.dt;
