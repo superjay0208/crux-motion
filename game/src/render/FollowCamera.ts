@@ -5,9 +5,14 @@ export class FollowCamera {
   center = v();
   scale = 1;
   origin = v();
+  reduced =
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches;
   private initialized = false;
+  private lookahead = v();
   reset() {
     this.initialized = false;
+    this.lookahead = v();
   }
   update(
     width: number,
@@ -15,14 +20,32 @@ export class FollowCamera {
     body: V,
     next: V | undefined,
     dt: number,
+    velocity: V = v(),
   ) {
+    const rawLook = this.reduced
+      ? v()
+      : v(
+          clamp(velocity.x * 0.14, -0.22, 0.22),
+          clamp(velocity.y * 0.14, -0.1, 0.24),
+        );
+    const lookAlpha = !this.initialized
+      ? 1
+      : 1 - Math.exp(-8 * clamp(dt, 0, 0.1));
+    this.lookahead = v(
+      this.lookahead.x + (rawLook.x - this.lookahead.x) * lookAlpha,
+      this.lookahead.y + (rawLook.y - this.lookahead.y) * lookAlpha,
+    );
     // Keep the feet below and one arm's reach above the player, rather than
-    // shrinking the entire campaign into view. The next move only nudges the view.
+    // shrinking the entire campaign into view. The next move and body velocity
+    // gently nudge the view toward the landing zone.
     const desired = add(
       body,
       v(
-        next ? clamp((next.x - body.x) * 0.12, -0.12, 0.12) : 0,
-        0.38 + (next ? clamp((next.y - body.y - 0.7) * 0.18, 0, 0.18) : 0),
+        (next ? clamp((next.x - body.x) * 0.12, -0.12, 0.12) : 0) +
+          this.lookahead.x,
+        0.38 +
+          (next ? clamp((next.y - body.y - 0.7) * 0.18, 0, 0.18) : 0) +
+          this.lookahead.y,
       ),
     );
     const scale = Math.min(width / 3.3, height / 3.2);
@@ -42,8 +65,8 @@ export class FollowCamera {
     }
     // Keep a fast dyno/fall inside the view even when smoothing is still catching
     // up. Leave room for a full arm sideways and the passive legs below.
-    this.center.x = clamp(this.center.x, body.x - 0.45, body.x + 0.45);
-    this.center.y = clamp(this.center.y, body.y - 0.6, body.y + 0.5);
+    this.center.x = clamp(this.center.x, body.x - 0.52, body.x + 0.52);
+    this.center.y = clamp(this.center.y, body.y - 0.6, body.y + 0.53);
     this.origin = v(
       width * 0.5 - this.center.x * this.scale,
       height * 0.5 + this.center.y * this.scale,
