@@ -3,32 +3,32 @@ import { pilot, type PilotOptions } from "./pilot";
 import { routes } from "../src/core/levels";
 import { Simulation } from "../src/core/Simulation";
 const motorConfigs: PilotOptions[] = [
-  { y: 0.35, offset: 0, settle: 0 },
-  { y: 0.35, offset: 0.8, settle: 0 },
-  { y: 0.35, offset: 0.6, settle: 0 },
-  { y: 0.35, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.35, offset: 0.6, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 20, finishInside: true, near: 0.65 },
-  { y: 0.35, offset: 0.6, settle: 0 },
-  { y: 0.35, offset: 0.8, settle: 0, releaseTick: 20 },
-  { y: 0.35, offset: 0.6, settle: 0, releaseTick: 20 },
-  { y: 0.25, offset: 0.8, settle: 90 },
-  { y: 0.35, offset: 0.6, settle: 0, releaseTick: 30 },
+  {},                           // 1 Warmup Buckets
+  {},                           // 2 Campus Rungs
+  {},                           // 3 Razor Edges
+  { y: 0.3, settle: 25 },       // 4 Twin Fins
+  {},                           // 5 Pendulum Traverse
+  {},                           // 6 Cross-Body
+  {},                           // 7 Launchpad
+  {},                           // 8 Under the Roof
+  {},                           // 9 Split Decision
+  {},                           // 10 Ricochet
+  {},                           // 11 Vice Grip
+  {},                           // 12 The King Line
 ];
 const anchorConfigs: PilotOptions[] = [
-  { y: 0.35, offset: 0, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 1, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 0.8, settle: 0 },
-  { y: 0.25, offset: 1, settle: 0 },
-  { y: 0.35, offset: 0.8, settle: 0, releaseTick: 20 },
-  { y: 0.35, offset: 0.6, settle: 0, releaseTick: 20 },
-  { y: 0.25, offset: 0.8, settle: 90 },
-  { y: 0.25, offset: 0.8, settle: 0, releaseTick: 30 },
+  {},                           // 1 Warmup Buckets
+  {},                           // 2 Campus Rungs
+  {},                           // 3 Razor Edges
+  {},                           // 4 Twin Fins
+  {},                           // 5 Pendulum Traverse
+  {},                           // 6 Cross-Body
+  {},                           // 7 Launchpad
+  {},                           // 8 Under the Roof
+  {},                           // 9 Split Decision
+  {},                           // 10 Ricochet
+  {},                           // 11 Vice Grip
+  {},                           // 12 The King Line
 ];
 await mkdir("../validation/solutions", { recursive: true });
 await mkdir("public/solutions", { recursive: true });

@@ -15,7 +15,11 @@ import {
 import { Camera } from "../src/tracking/Camera";
 import { cameraGrip } from "../src/tracking/upstream";
 import { initialInputs } from "../src/core/types";
-import { handShape, observation } from "./fixtures/hands";
+import {
+  handShape,
+  fistWithThumbNearIndex,
+  observation,
+} from "./fixtures/hands";
 afterEach(() => vi.unstubAllGlobals());
 const detection = (x: number, y: number, label: string): Detection => ({
   label,
@@ -372,8 +376,8 @@ describe("ready-intent continuity and camera frame pipeline", () => {
 });
 
 describe("upstream gesture classifier and assisted grips", () => {
-  it("mirrors metric world landmarks around 0 and protects Crimp, Pinch, Sloper and personal prototypes", () => {
-    for (const grip of ["jug", "crimp", "sloper", "pinch", "release"] as const) {
+  it("mirrors metric world landmarks around 0 and protects Crimp, Pinch, and personal prototypes", () => {
+    for (const grip of ["jug", "crimp", "pinch", "release"] as const) {
       const pts = handShape(grip, { x: 0.5, y: 0.5 }, "left").map((p) => ({
         ...p,
         y: 0.5 + ((p.y - 0.5) * 960) / 540,
@@ -443,14 +447,113 @@ describe("upstream gesture classifier and assisted grips", () => {
     expect(cam.assistedGrips).toBe(false);
     expect(cam.acceptsGrip("pinch", "jug")).toBe(false);
     expect(cam.acceptsGrip("jug", "crimp")).toBe(false);
-    expect(cam.acceptsGrip("crimp", "jug")).toBe(true);
+    expect(cam.acceptsGrip("crimp", "jug")).toBe(false);
 
     cam.calibration.assistedGrips = true;
     expect(cam.assistedGrips).toBe(true);
     expect(cam.acceptsGrip("pinch", "jug")).toBe(true);
     expect(cam.acceptsGrip("jug", "crimp")).toBe(true);
-    expect(cam.acceptsGrip("sloper", "pinch")).toBe(true);
+    expect(cam.acceptsGrip("jug", "pinch")).toBe(true);
     expect(cam.acceptsGrip("release", "jug")).toBe(false);
     expect(cam.acceptsGrip("unknown", "jug")).toBe(false);
+  });
+
+  it("separates Jug, Crimp, Pinch, and Release with >= 0.25 class margin and never misclassifies thumb-near-index fist as Pinch", () => {
+    for (const side of ["left", "right"] as const) {
+      for (const grip of ["jug", "crimp", "pinch", "release"] as const) {
+        const pts = handShape(grip, { x: 0.5, y: 0.5 }, side).map((p) => ({
+          ...p,
+          y: 0.5 + ((p.y - 0.5) * 960) / 540,
+        }));
+        const world = handShape(grip, { x: 0, y: 0 }, side);
+        const geo = classify(features(pts, 960, 540));
+        expect(geo.grip).toBe(grip);
+        const geoSorted = Object.values(geo.classes).sort((a, b) => b - a);
+        expect(geo.classes[grip]).toBe(geoSorted[0]);
+        expect(geoSorted[0] - geoSorted[1]).toBeGreaterThanOrEqual(0.25);
+
+        const up = cameraGrip(
+          {
+            points: pts,
+            world,
+            label: side === "left" ? "Left" : "Right",
+            score: 0.99,
+          },
+          side,
+          960,
+          540,
+          {},
+          "unknown",
+        );
+        expect(up.found.grip).toBe(grip);
+        expect(up.scores?.classes).toEqual(up.classes);
+        const upSorted = Object.values(up.classes).sort((a, b) => b - a);
+        expect(up.classes[grip]).toBe(upSorted[0]);
+        expect(upSorted[0] - upSorted[1]).toBeGreaterThanOrEqual(0.25);
+      }
+
+      // Negative test: rolled fist with thumb resting near curled index finger must stay Jug, never Pinch
+      const fistPts = fistWithThumbNearIndex({ x: 0.5, y: 0.5 }, side).map(
+        (p) => ({
+          ...p,
+          y: 0.5 + ((p.y - 0.5) * 960) / 540,
+        }),
+      );
+      const fistWorld = fistWithThumbNearIndex({ x: 0, y: 0 }, side);
+      const fistGeo = classify(features(fistPts, 960, 540));
+      expect(fistGeo.grip).toBe("jug");
+      expect(fistGeo.classes.jug - fistGeo.classes.pinch).toBeGreaterThanOrEqual(
+        0.25,
+      );
+      const fistGeoSorted = Object.values(fistGeo.classes).sort((a, b) => b - a);
+      expect(fistGeoSorted[0] - fistGeoSorted[1]).toBeGreaterThanOrEqual(0.25);
+
+      const fistUp = cameraGrip(
+        {
+          points: fistPts,
+          world: fistWorld,
+          label: side === "left" ? "Left" : "Right",
+          score: 0.99,
+        },
+        side,
+        960,
+        540,
+        {},
+        "unknown",
+      );
+      expect(fistUp.found.grip).toBe("jug");
+      expect(fistUp.classes.jug - fistUp.classes.pinch).toBeGreaterThanOrEqual(
+        0.25,
+      );
+      const fistUpSorted = Object.values(fistUp.classes).sort((a, b) => b - a);
+      expect(fistUpSorted[0] - fistUpSorted[1]).toBeGreaterThanOrEqual(0.25);
+    }
+
+    // Verify Camera.classScores[side] updates live and strips legacy sloper prototype
+    const saved = {
+      version: 1,
+      controlRevision: 2,
+      reach: 0.44,
+      armMode: "anchors",
+      prototypes: {
+        sloper: { mean: Array(18).fill(0.3), spread: Array(18).fill(0.1) },
+        jug: { mean: Array(18).fill(0.5), spread: Array(18).fill(0.1) },
+      },
+    };
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: () => JSON.stringify(saved),
+      setItem,
+    });
+    const cam = new Camera({} as HTMLVideoElement);
+    expect("sloper" in cam.calibration.prototypes).toBe(false);
+    expect(cam.calibration.prototypes.jug).toBeDefined();
+    expect(setItem).toHaveBeenCalledOnce();
+    const input = initialInputs();
+    input.left.grip = "pinch";
+    input.right.grip = "crimp";
+    cam.process(observation(input, 1, 100));
+    expect(cam.classScores.left.pinch - cam.classScores.left.jug).toBeGreaterThanOrEqual(0.25);
+    expect(cam.classScores.right.crimp - cam.classScores.right.jug).toBeGreaterThanOrEqual(0.25);
   });
 });

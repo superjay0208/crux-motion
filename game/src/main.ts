@@ -38,12 +38,34 @@ const icon = (name: string) =>
     pause: "Ⅱ",
     sound: "♫",
   })[name] || name;
+
+const holdKindColor: Record<Grip, string> = {
+  jug: "#2fb370",
+  crimp: "#eb9c28",
+  pinch: "#e55938",
+  release: "#4d8ef7",
+  unknown: "#9c9183",
+};
+
+function holdDotsHtml(holds: (typeof routes)[number]["holds"]): string {
+  const kinds = (["jug", "crimp", "pinch"] as const).filter((k) =>
+    holds.some((h) => !h.finish && h.label !== "START" && h.kind === k),
+  );
+  const shown = kinds.length ? kinds : (["jug"] as const);
+  return `<span class="hold-dots">${shown
+    .map(
+      (k) =>
+        `<i style="background:${holdKindColor[k]}" title="${gripNames[k]}"></i>`,
+    )
+    .join("")}</span>`;
+}
+
 const app = document.querySelector<HTMLDivElement>("#app")!;
-app.innerHTML = `<header class="masthead"><a class="wordmark" href="#" aria-label="Crux Motion home"><span class="mark">⌁</span> CRUX<span class="wordmark-motion">MOTION</span></a><div class="edition"><span class="live-dot"></span> THE CAMPUS EXPERIMENT <span class="edition-line">/</span> VOL. 01</div><button class="text-button" id="about-button">How it works <span>↗</span></button></header>
-<main class="shell"><section class="intro" id="intro"><div class="eyebrow"><span class="short-rule"></span> A DIFFERENT WAY UP</div><h1>Your hands.<br>Your next <em>move.</em></h1><p class="intro-copy">Reach for it. Feel the swing. Stick the catch.<br>A climbing game that moves with you.</p><div class="launch-actions"><button class="primary" id="camera-start">${icon("camera")} Use your camera <span>↗</span></button><button class="secondary" id="practice-start">Explore with practice controls <span>→</span></button></div><p class="privacy-note"><span>◈</span> On-device tracking. Your camera stays yours.</p><div class="feature-strip"><div><strong>02</strong><span>HANDS. ONE RHYTHM.</span></div><div><strong>12</strong><span>WAYS TO THE TOP.</span></div><div><strong>∞</strong><span>ONE MORE TRY.</span></div></div><div class="intro-bottom"><span>NO FOOTWORK. ALL FEEL.</span><span>↓ FIND YOUR FLOW</span></div></section>
-<section class="wall-wrap"><div class="wall-top"><span id="wall-label">THE MOVEMENT LAB</span><span id="wall-top-right">LIVE PHYSICS / 120 HZ</span></div><canvas id="wall" aria-label="Physical climbing wall and climber"></canvas><div class="wall-caption" id="wall-caption"><span class="tiny-tag">01 / JUG LADDER</span><span>Every move begins with a little trust.</span></div><div class="game-overlay hidden" id="game-overlay"></div><div class="wall-legend"><span><i style="background:#8ae2c7"></i> JUG</span><span><i style="background:#efb373"></i> CRIMP</span><span><i style="background:#a9baf2"></i> SLOPER</span><span><i style="background:#ef9f96"></i> PINCH</span><span>↥ UNDERCLING</span></div></section>
-<aside class="play-panel hidden" id="play-panel"><div class="eyebrow" id="session-mode">PRACTICE SESSION</div><h2 id="route-name">Jug Ladder</h2><p class="panel-subtitle" id="route-subtitle"></p><div class="route-progress"><span id="progress-label">0 / 3 holds</span><span id="clock">00:00</span><div class="progress-track"><i id="progress-fill"></i></div></div><div class="coach-card"><span class="eyebrow">THE NEXT MOVE</span><p id="hint"></p></div><div class="hand-cards"><button class="hand-card selected" data-hand="left"><span>LEFT HAND <b>L</b></span><strong id="left-grip">${gripNames.jug}</strong><div class="meter"><i id="left-reserve"></i></div><small id="left-contact">Holding</small></button><button class="hand-card" data-hand="right"><span>RIGHT HAND <b>R</b></span><strong id="right-grip">${gripNames.jug}</strong><div class="meter"><i id="right-reserve"></i></div><small id="right-contact">Holding</small></button></div><div class="grip-selector" id="grip-selector"><label>GRIP SHAPE <span>1–4</span></label>${(["jug", "crimp", "sloper", "pinch"] as Grip[]).map((g, i) => `<button data-grip="${g}" class="grip-option ${i === 0 ? "active" : ""}" title="${i + 1}: ${gripNames[g]}"><span class="grip-symbol">${["∩", "⌐", "◡", "⊂"][i]}</span>${gripNames[g]}</button>`).join("")}</div><button class="release-button" id="release-hand">Release selected hand <span>Q / E</span></button><button class="dual-release-button" id="release-both">Release both hands (Dyno) <span>· V</span></button><div class="camera-preview hidden" id="camera-preview"></div><p class="camera-status" id="camera-status"></p><div class="session-tools"><button id="calibrate-button">Calibrate</button><button id="lab-button">Grip lab ↗</button><button id="settings-button" aria-label="Open settings">⚙</button></div><div class="controls-note" id="controls-note">Drag a wrist to reach. Space pulls; Shift extends.<br>Q / E releases left / right. Tab changes hand.</div><div class="panel-bottom"><button class="icon-button" id="retry" aria-label="Retry route">↻</button><button class="icon-button" id="pause" aria-label="Pause or resume">Ⅱ</button><button class="secondary compact" id="routes-button">All routes <span>↗</span></button></div></aside></main>
-<footer><span>BUILT FOR THE MOMENT IT CLICKS.</span><span class="footer-right">UPPER BODY. HIGHER POSSIBILITIES. <b>↗</b></span></footer>
+app.innerHTML = `<header class="masthead"><a class="wordmark" href="#" aria-label="Crux Motion home"><span class="mark">▲</span> CRUX<span class="wordmark-motion">MOTION</span></a><div class="edition"><span class="live-dot"></span> BOULDERING TOPO <span class="edition-line">/</span> 12 PROBLEMS · B1–B6</div><button class="text-button" id="about-button">How to climb <span>↗</span></button></header>
+<main class="shell"><section class="intro" id="intro"><div class="eyebrow"><span class="short-rule"></span> CAMPUS BOULDERING TOPO · B1 TO B6</div><h1>Chalk up.<br>Match the <em>top.</em></h1><p class="intro-copy">Twelve handcrafted boulder problems built around three real grips—Jug, Crimp, and Pinch. Pull through your shoulders, shake out forearm pump, and launch two-hand dynos.</p><div class="launch-actions"><button class="primary" id="camera-start">${icon("camera")} Climb with webcam <span>↗</span></button><button class="secondary" id="practice-start">Practice with mouse &amp; keys <span>→</span></button></div><p class="privacy-note"><span>◈</span> 100% on-device MediaPipe tracking · camera video never leaves your device.</p><div class="front-boulder-section" id="front-boulder-section"><div class="front-boulder-header"><span>12 BOULDERS · ALL UNLOCKED</span><span id="intro-cleared-count">0 / 12 SENT</span></div><div class="front-boulder-grid" id="front-boulder-grid"></div></div></section>
+<section class="wall-wrap"><div class="wall-top"><span id="wall-label">01 / WARMUP BUCKETS</span><span id="wall-top-right">120 HZ PHYSICS · MATCH TOP</span></div><canvas id="wall" aria-label="Physical climbing wall and climber"></canvas><div class="wall-caption" id="wall-caption"><span class="tiny-tag">01 / WARMUP BUCKETS</span><span>B1 · Jugs</span></div><div class="game-overlay hidden" id="game-overlay"></div><div class="wall-legend"><span><i style="background:#2fb370"></i> JUG</span><span><i style="background:#eb9c28"></i> CRIMP</span><span><i style="background:#e55938"></i> PINCH</span><span><i style="background:#f5ede0"></i> TOP (MATCH)</span><span>↥ UNDERCLING</span></div></section>
+<aside class="play-panel hidden" id="play-panel"><div class="eyebrow" id="session-mode">PRACTICE SESSION</div><h2 id="route-name">Warmup Buckets</h2><p class="panel-subtitle" id="route-subtitle"></p><div class="route-progress"><span id="progress-label">Match TOP to send · 0/3 holds</span><span id="clock">00:00</span><div class="progress-track"><i id="progress-fill"></i></div></div><div class="stamina-panel" id="stamina-panel"><div class="stamina-header"><span>STAMINA &amp; PUMP</span><strong id="stamina-state">FRESH · 100%</strong></div><div class="stamina-bar" id="core-stamina-bar"><i class="stamina-fill" id="core-stamina-fill" style="width:100%"></i></div><div class="stamina-limbs"><div class="stamina-limb"><span>L FOREARM <b id="left-pump-pct">100%</b></span><div class="meter"><i id="stamina-left-fill" style="width:100%"></i></div></div><div class="stamina-limb"><span>R FOREARM <b id="right-pump-pct">100%</b></span><div class="meter"><i id="stamina-right-fill" style="width:100%"></i></div></div></div></div><div class="coach-card"><span class="eyebrow">ROUTE BETA</span><p id="hint"></p></div><div class="hand-cards"><button class="hand-card selected" data-hand="left"><span>LEFT HAND <b>L</b></span><strong id="left-grip">${gripNames.jug}</strong><div class="meter"><i id="left-reserve"></i></div><small id="left-contact">Holding</small></button><button class="hand-card" data-hand="right"><span>RIGHT HAND <b>R</b></span><strong id="right-grip">${gripNames.jug}</strong><div class="meter"><i id="right-reserve"></i></div><small id="right-contact">Holding</small></button></div><div class="gesture-bars hidden" id="gesture-bars" aria-label="Live 4-class gesture confidence"><div class="gesture-bar" data-gesture-class="jug"><span class="gesture-bar-head"><b>JUG</b><em id="score-jug">0%</em></span><div class="bar-track"><i id="bar-jug" style="width:0%"></i></div></div><div class="gesture-bar" data-gesture-class="crimp"><span class="gesture-bar-head"><b>CRIMP</b><em id="score-crimp">0%</em></span><div class="bar-track"><i id="bar-crimp" style="width:0%"></i></div></div><div class="gesture-bar" data-gesture-class="pinch"><span class="gesture-bar-head"><b>PINCH</b><em id="score-pinch">0%</em></span><div class="bar-track"><i id="bar-pinch" style="width:0%"></i></div></div><div class="gesture-bar" data-gesture-class="release"><span class="gesture-bar-head"><b>OPEN</b><em id="score-release">0%</em></span><div class="bar-track"><i id="bar-release" style="width:0%"></i></div></div></div><div class="grip-selector" id="grip-selector"><label>GRIP SHAPE <span>1–3</span></label>${(["jug", "crimp", "pinch"] as Grip[]).map((g, i) => `<button data-grip="${g}" class="grip-option ${i === 0 ? "active" : ""}" title="${i + 1}: ${gripNames[g]}"><span class="grip-symbol">${["✊", "⌐", "⊂"][i]}</span>${gripNames[g]}</button>`).join("")}</div><button class="release-button" id="release-hand">Release selected hand <span>Q / E</span></button><button class="dual-release-button" id="release-both">Release both hands (Dyno) <span>· V</span></button><div class="camera-preview hidden" id="camera-preview"></div><p class="camera-status" id="camera-status"></p><div class="session-tools"><button id="calibrate-button">Calibrate</button><button id="lab-button">Grip lab ↗</button><button id="settings-button" aria-label="Open settings">⚙</button></div><div class="controls-note" id="controls-note">Drag a wrist to reach. W / Space pulls; S / Shift extends.<br>Q / E releases L / R · V dynos · 1–3 picks grip.</div><div class="panel-bottom"><button class="icon-button" id="prev-route" aria-label="Previous boulder" title="Previous boulder">‹</button><button class="icon-button" id="retry" aria-label="Retry route">↻</button><button class="icon-button" id="pause" aria-label="Pause or resume">Ⅱ</button><button class="secondary compact" id="routes-button">All routes <span>↗</span></button><button class="icon-button" id="next-route" aria-label="Next boulder" title="Next boulder">›</button></div></aside></main>
+<footer><span>CRUX MOTION · 120 HZ PHYSICAL BOULDERING TOPO</span><span class="footer-right">JUG · CRIMP · PINCH · MATCH TOP <b>▲</b></span></footer>
 <dialog id="modal"><button class="modal-close" id="modal-close" aria-label="Close dialog">×</button><div id="modal-content"></div></dialog>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -71,7 +93,7 @@ function parseRouteParam(raw: string | null): number | null {
 const initialUrlParams = new URLSearchParams(location.search);
 const deepLinkRoute = parseRouteParam(initialUrlParams.get("route"));
 const deepLinkMode = initialUrlParams.get("mode")?.trim().toLowerCase() ?? "";
-const baseShowcaseIds = ["motion-01", "motion-02", "motion-09"];
+const baseShowcaseIds = ["motion-01", "motion-07", "motion-10", "motion-12"];
 const introPlaylist =
   deepLinkRoute !== null
     ? [
@@ -79,6 +101,7 @@ const introPlaylist =
         ...baseShowcaseIds.filter((id) => id !== routes[deepLinkRoute].id),
       ]
     : [...baseShowcaseIds];
+let introManualSelection = false;
 const introDemoCache = new Map<string, Replay>();
 let introPlaylistPos = 0,
   introReplay: Replay | null = null,
@@ -136,7 +159,12 @@ function text(id: string, value: string) {
   const target = document.getElementById(id);
   if (target && target.textContent !== value) target.textContent = value;
 }
-const calibrationSteps = [
+const calibrationSteps: {
+  name: string;
+  grip: Grip | null;
+  orientation?: "down" | "side";
+  help: string;
+}[] = [
   {
     name: "Find your frame",
     grip: null,
@@ -150,41 +178,36 @@ const calibrationSteps = [
   {
     name: "Jug",
     grip: "jug",
-    help: "Curl all fingers into a relaxed closed hand. Keep the thumb comfortable. Hold both hands steady.",
+    help: "Curl all fingers into a relaxed closed fist. Keep your thumb comfortable across the front. Hold both hands steady.",
   },
   {
     name: "Crimp",
     grip: "crimp",
-    help: "Bend your fingers into a small hook, with the fingertips pointing down. Keep this different from a fist.",
-  },
-  {
-    name: "Sloper",
-    grip: "sloper",
-    help: "Cup both hands with fingers together, almost like holding a little water. A gentle curl is enough.",
+    help: "Arched claw hook: bend your finger joints sharply while keeping your palm open, clearly distinct from a closed fist.",
   },
   {
     name: "Pinch",
     grip: "pinch",
-    help: "Bring your thumb toward bent index and middle fingers in a C shape. Keep the remaining fingers relaxed.",
+    help: "Touch your thumb and index fingertips together out in front (beak / O-pinch clamp). Keep the remaining fingers relaxed.",
   },
   {
     name: "Spread to release",
     grip: "release",
-    help: "Extend and SPREAD all fingers clearly. This must feel different from your cupped sloper gesture.",
+    help: "Extend and SPREAD all five fingers straight and wide. Spread both hands together when launching a dyno.",
   },
-];
-calibrationSteps.push(
   {
     name: "Undercling",
     grip: null,
-    help: "Curl your fingers gently and turn your palms toward the ceiling, as if scooping under a ledge. Hold both hands in view.",
+    orientation: "down",
+    help: "Curl your fingers into a Jug and turn your palms upward toward the ceiling, as if scooping under a roof lip. Hold both hands in view.",
   },
   {
     name: "Turn for a sidepull",
     grip: null,
+    orientation: "side",
     help: "Turn both hands sideways in a comfortable grip. This captures your personal sidepull orientation.",
   },
-);
+];
 type Save = {
   version: 1;
   cleared: string[];
@@ -300,14 +323,63 @@ el<HTMLDialogElement>("modal").addEventListener("close", () => {
   if (mode === "camera" && camera.running)
     el("camera-preview").append(camera.video);
 });
+function routeSaveSummary(routeId: string) {
+  const keys = [
+    `camera:${routeId}`,
+    `practice:${routeId}`,
+    `camera:assisted:${routeId}`,
+    `practice:assisted:${routeId}`,
+  ];
+  const stdCleared =
+    save.cleared.includes(`camera:${routeId}`) ||
+    save.cleared.includes(`practice:${routeId}`);
+  const anyCleared = keys.some((k) => save.cleared.includes(k));
+  let bestTime: number | undefined;
+  for (const k of keys) {
+    const val = save.best[k];
+    if (typeof val === "number" && (bestTime === undefined || val < bestTime)) {
+      bestTime = val;
+    }
+  }
+  return { stdCleared, anyCleared, bestTime };
+}
+function renderFrontBoulderGrid() {
+  const grid = document.getElementById("front-boulder-grid");
+  if (!grid) return;
+  let clearedTotal = 0;
+  grid.innerHTML = routes
+    .map((r, i) => {
+      const { anyCleared, bestTime } = routeSaveSummary(r.id);
+      if (anyCleared) clearedTotal++;
+      const active = i === index;
+      const tagNote = bestTime
+        ? `${bestTime.toFixed(1)}s`
+        : (r.subtitle.split("·")[1]?.trim() ?? r.difficulty);
+      return `<button type="button" class="boulder-card${active ? " active" : ""}${anyCleared ? " cleared" : ""}" data-intro-route="${i}" aria-current="${active ? "true" : "false"}"><span class="boulder-card-top"><span>${String(i + 1).padStart(2, "0")}${anyCleared ? " ✓" : ""}</span><em class="boulder-grade">${r.difficulty}</em></span><strong>${r.name}</strong><small>${holdDotsHtml(r.holds)}<span>${tagNote}</span></small></button>`;
+    })
+    .join("");
+  text("intro-cleared-count", `${clearedTotal} / ${routes.length} SENT`);
+  grid.querySelectorAll<HTMLButtonElement>("[data-intro-route]").forEach((btn) => {
+    btn.onclick = () => {
+      const picked = Number(btn.dataset.introRoute);
+      if (!Number.isFinite(picked) || picked < 0 || picked >= routes.length) return;
+      index = picked;
+      introManualSelection = true;
+      renderFrontBoulderGrid();
+      void previewIntroRoute(picked);
+    };
+  });
+}
+renderFrontBoulderGrid();
 function updateIntroCaption(routeIdx: number) {
   const r = routes[routeIdx];
   el("wall-caption").innerHTML =
     `<span class="tiny-tag">${String(routeIdx + 1).padStart(2, "0")} / ${r.name.toUpperCase()}</span><span>${r.subtitle}</span>`;
   el("wall-caption").classList.toggle("hidden", mode !== "intro");
   if (mode === "intro") {
-    el("wall-label").textContent = "THE MOVEMENT LAB";
-    el("wall-top-right").textContent = "LIVE PHYSICS / 120 HZ";
+    el("wall-label").textContent =
+      `${String(routeIdx + 1).padStart(2, "0")} / ${r.name.toUpperCase()}`;
+    el("wall-top-right").textContent = `${r.difficulty} · 120 HZ SHOWCASE`;
   }
 }
 function setIntroStaticPose(routeIdx: number) {
@@ -327,15 +399,11 @@ function setIntroStaticPose(routeIdx: number) {
   canvas.dataset.demoTick = "0";
   updateIntroCaption(routeIdx);
 }
-async function loadIntroShowcase(pos: number) {
-  const gen = ++introGen;
-  introPlaylistPos =
-    ((pos % introPlaylist.length) + introPlaylist.length) % introPlaylist.length;
-  const routeId = introPlaylist[introPlaylistPos];
-  const routeIdx = routes.findIndex((r) => r.id === routeId);
-  if (routeIdx < 0 || mode !== "intro") return;
+async function playIntroRouteByIndex(routeIdx: number, gen: number) {
+  const routeId = routes[routeIdx]?.id;
+  if (!routeId || mode !== "intro") return;
   if (save.reduced) {
-    setIntroStaticPose(index);
+    setIntroStaticPose(routeIdx);
     return;
   }
   introLoading = true;
@@ -376,6 +444,19 @@ async function loadIntroShowcase(pos: number) {
     setIntroStaticPose(routeIdx);
   }
 }
+async function previewIntroRoute(routeIdx: number) {
+  const gen = ++introGen;
+  await playIntroRouteByIndex(routeIdx, gen);
+}
+async function loadIntroShowcase(pos: number) {
+  const gen = ++introGen;
+  introPlaylistPos =
+    ((pos % introPlaylist.length) + introPlaylist.length) % introPlaylist.length;
+  const routeId = introPlaylist[introPlaylistPos];
+  const routeIdx = routes.findIndex((r) => r.id === routeId);
+  if (routeIdx < 0 || mode !== "intro") return;
+  await playIntroRouteByIndex(routeIdx, gen);
+}
 function enter(next: "camera" | "practice") {
   introGen++;
   introReplay = null;
@@ -391,8 +472,8 @@ function enter(next: "camera" | "practice") {
   el("release-both").classList.toggle("hidden", next === "camera");
   el("controls-note").textContent =
     next === "camera"
-      ? "Start with relaxed Jug fists near your chest. Swing or pull up, then spread BOTH hands together to dyno. Recenter · C resets pose."
-      : "Drag wrist to reach. W / Space pulls; S / Shift extends; A / D swings. V dynos (both); G catches; Q / E release L / R; O turns palm.";
+      ? "Start with Jug fists near your chest. Swing or pull up, then spread BOTH hands together to dyno. Lower a free hand to shake out pump · C recenters."
+      : "Drag wrist to reach. W / Space pulls; S / Shift extends; A / D swings. V dynos (both); G catches; Q / E release L / R; 1–3 grips; O turns palm.";
   audio.unlock();
   loadRoute(index);
 }
@@ -400,6 +481,7 @@ function loadRoute(i: number) {
   cancelHandsFree();
   camera.clearCenter();
   index = i;
+  renderFrontBoulderGrid();
   const useAnchors =
     mode === "camera"
       ? !camera.calibration.armMode || camera.calibration.armMode === "anchors"
@@ -724,7 +806,7 @@ function finishCalibrationStep() {
         "Not enough fresh samples from each hand. Set up capture and hold both hands in frame.",
       );
     if (step.grip) camera.capture(step.grip as Grip, calibrationSamples);
-    if (calibrationStep >= 7) {
+    if (step.orientation) {
       if (orientationSamples.length < 8)
         throw new Error("Hold the orientation with both hands visible.");
       const mean = orientationSamples[0].map(
@@ -734,8 +816,9 @@ function finishCalibrationStep() {
         ),
         l = Math.hypot(...mean) || 1;
       camera.calibration.orientations ??= {};
-      camera.calibration.orientations[calibrationStep === 7 ? "down" : "side"] =
-        mean.map((x) => x / l);
+      camera.calibration.orientations[step.orientation] = mean.map(
+        (x) => x / l,
+      );
       camera.save();
     }
     if (calibrationStep === 1) {
@@ -847,6 +930,12 @@ function updateCalibration(now: number) {
   }
 }
 el("calibrate-button").onclick = calibrate;
+el("prev-route").onclick = () => {
+  loadRoute((index - 1 + routes.length) % routes.length);
+};
+el("next-route").onclick = () => {
+  loadRoute((index + 1) % routes.length);
+};
 el("retry").onclick = () => {
   retryRoute(index);
 };
@@ -1289,8 +1378,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyA" || e.code === "ArrowLeft") swayLeft = true;
   if (e.code === "KeyD" || e.code === "ArrowRight") swayRight = true;
   const g = Number(e.key);
-  if (g >= 1 && g <= 4)
-    chooseGrip((["jug", "crimp", "sloper", "pinch"] as Grip[])[g - 1]);
+  if (g >= 1 && g <= 3)
+    chooseGrip((["jug", "crimp", "pinch"] as Grip[])[g - 1]);
 });
 window.addEventListener("keyup", (e) => {
   if (e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp")
@@ -1334,24 +1423,28 @@ document.querySelector(".wordmark")!.addEventListener("click", (e) => {
   camera.stop();
   closeModal();
   mode = "intro";
+  introManualSelection = false;
   document.body.classList.remove("playing");
   el("intro").classList.remove("hidden");
   el("play-panel").classList.add("hidden");
   el("game-overlay").classList.add("hidden");
   index = deepLinkRoute ?? 0;
+  renderFrontBoulderGrid();
   setIntroStaticPose(index);
   if (!save.reduced) void loadIntroShowcase(0);
 });
 function routeMenu() {
   showModal(
-    `<div class="eyebrow">TWELVE WAYS UP</div><h2>Find your next problem.</h2><p>Start with the foundations, or try any route as practice.</p><div class="route-grid">${routes
+    `<div class="eyebrow">BOULDERING TOPO · B1 TO B6</div><h2>Pick any boulder.</h2><p>All twelve problems are unlocked. Match both hands on TOP to send.</p><div class="route-grid">${routes
       .map((r, i) => {
         const stdKey = `${mode}:${r.id}`,
           astKey = `${mode}:assisted:${r.id}`,
           stdCleared = save.cleared.includes(stdKey),
           astCleared = save.cleared.includes(astKey),
-          bestTime = save.best[stdKey] ?? save.best[astKey];
-        return `<button class="route-card" data-route="${i}"><span>${String(i + 1).padStart(2, "0")} <i>${stdCleared || astCleared ? "✓" : i === index ? "●" : "↗"}</i></span><strong>${r.name}</strong><small>${r.difficulty}${!stdCleared && astCleared ? " · (assisted)" : ""}${bestTime ? " · " + bestTime.toFixed(1) + "s" : ""}</small></button>`;
+          anyInfo = routeSaveSummary(r.id),
+          clearedHere = stdCleared || astCleared || anyInfo.anyCleared,
+          bestTime = save.best[stdKey] ?? save.best[astKey] ?? anyInfo.bestTime;
+        return `<button class="route-card" data-route="${i}"><span>${String(i + 1).padStart(2, "0")} <em class="boulder-grade">${r.difficulty}</em> <i>${clearedHere ? "✓" : i === index ? "●" : "↗"}</i></span><strong>${r.name}</strong><small>${holdDotsHtml(r.holds)} <span>${r.subtitle.split("·")[1]?.trim() ?? r.difficulty}${!stdCleared && astCleared ? " · assisted" : ""}${bestTime ? " · " + bestTime.toFixed(1) + "s" : ""}</span></small></button>`;
       })
       .join("")}</div>`,
   );
@@ -1575,7 +1668,7 @@ document.body.append(recordingBanner);
 el("stop-recording").onclick = () => void testRecorder.stop();
 recordButton.onclick = () => {
   showModal(
-    '<div class="eyebrow">LOCAL CAMERA + GAMEPLAY TEST</div><h2>Let’s see the whole move.</h2><p>Record a 60-second split-screen video of your camera and the game, plus synchronized tracking diagnostics. Game sound is included; your microphone is not recorded.</p><label for="test-scenario">Test to record</label><select id="test-scenario"><option value="reach">Jug Ladder · reach and grips</option><option value="cross">Cross Current · crossed arms</option><option value="dyno">First Flight · dyno</option></select><p>The first 15 seconds guide the setup. The climb then arms automatically. Recording stops and saves after 60 seconds, or use Stop & save sooner.</p><p class="fine-print">Saved only on this computer in crux-motion/personal-recordings. Nothing is sent to an external service.</p><button class="primary" id="start-test-recording">Start recording test →</button>',
+    '<div class="eyebrow">LOCAL CAMERA + GAMEPLAY TEST</div><h2>Record a 60-second burn.</h2><p>Record a 60-second split-screen video of your webcam and the wall, plus synchronized tracking diagnostics. Game sound is included; your microphone is not recorded.</p><label for="test-scenario">Test to record</label><select id="test-scenario"><option value="reach">Warmup Buckets · reach and 3 grips</option><option value="cross">Cross-Body · crossed arms</option><option value="dyno">Launchpad · two-hand dyno</option></select><p>The first 15 seconds guide framing and the 3 grips. The climb then arms automatically. Recording stops and saves after 60 seconds, or use Stop &amp; save sooner.</p><p class="fine-print">Saved only on this computer in crux-motion/personal-recordings. Nothing is sent to an external service.</p><button class="primary" id="start-test-recording">Start recording test →</button>',
   );
   const swingOption = document.createElement("option");
   swingOption.value = "swing";
@@ -1603,7 +1696,7 @@ async function beginRecordedTest(scenario: TestScenario) {
       camera.calibration.armMode = "anchors";
       camera.save();
     }
-    loadRoute(scenario === "cross" ? 1 : scenario === "dyno" ? 8 : 0);
+    loadRoute(scenario === "cross" ? 5 : scenario === "dyno" ? 6 : 0);
     if (reviewVideoUrl) {
       URL.revokeObjectURL(reviewVideoUrl);
       reviewVideoUrl = "";
@@ -1867,30 +1960,43 @@ el("lab-button").onclick = () => {
   sim.route = {
     ...sim.route,
     name: "Grip lab",
-    subtitle: "Get to know your hands",
-    hint: "Practice every shape. Watch the recognized grip, then catch its matching hold.",
+    subtitle: "Test all 3 grips, scoop & match top",
+    hint: "Try Jug (fist), Crimp (claw hook), Pinch (thumb-index clamp), and Open release. Match TOP when ready.",
     holds: [
       ...sim.route.holds.slice(0, 2),
       {
         id: "lab-edge",
-        p: v(-0.38, 1.48),
+        p: v(-0.36, 1.52),
         kind: "crimp",
         radius: 0.13,
         direction: v(0, 1),
-      },
-      {
-        id: "lab-slope",
-        p: v(0.36, 1.5),
-        kind: "sloper",
-        radius: 0.22,
-        direction: v(0, 1),
+        label: "CRIMP",
       },
       {
         id: "lab-pinch",
-        p: v(0, 1.87),
+        p: v(0.36, 1.52),
         kind: "pinch",
-        radius: 0.16,
+        radius: 0.15,
         direction: v(0, 1),
+        label: "PINCH",
+      },
+      {
+        id: "lab-scoop",
+        p: v(0, 1.24),
+        kind: "jug",
+        radius: 0.17,
+        direction: v(0, -1),
+        label: "SCOOP",
+      },
+      {
+        id: "top",
+        p: v(0, 1.9),
+        kind: "jug",
+        radius: 0.25,
+        direction: v(0, 1),
+        match: true,
+        finish: true,
+        label: "TOP",
       },
     ],
   };
@@ -1898,7 +2004,7 @@ el("lab-button").onclick = () => {
 };
 el("about-button").onclick = () =>
   showModal(
-    `<div class="eyebrow">THE CAMPUS EXPERIMENT</div><h2>Move with intention.</h2><p>Begin with relaxed Jug fists near your chest. The countdown centers this comfortable pose. Small movements reach with a free hand; lowering a supporting fist pulls the body up. Spread your fingers to release.</p><div class="how-grid"><div><b>01 / REACH</b><p>Keep shoulders and both hands in frame. Crossing your arms crosses the climber’s arms. Recenter hands · C pauses safely so you can reset your pose.</p></div><div><b>02 / HOLD</b><p>Jug: relaxed fist. Crimp: hooked fingers. Sloper: rounded palm. Pinch: opposing thumb and fingers. Undercling: palm up with the shown grip.</p></div><div><b>03 / FLY</b><p>Build momentum while holding. Release, reach and catch. The body carries its real simulated velocity.</p></div></div><p class="fine-print">This is a game about feel. It doesn’t measure grip force or predict real climbing ability.</p>`,
+    `<div class="eyebrow">HOW TO CLIMB · BOULDERING TOPO</div><h2>Three grips. Pure physics.</h2><p>Start with relaxed Jug fists near your chest. Lowering a planted hand pulls your body up; spreading all five fingers releases. Match both hands on TOP for 0.35s to send any boulder—skipping holds or throwing dynos is always legal.</p><div class="how-grid"><div><b>01 / THREE GRIPS + OPEN</b><p><strong>Jug:</strong> closed fist (emerald). <strong>Crimp:</strong> arched claw hook with open palm (ochre). <strong>Pinch:</strong> thumb-to-index beak/O clamp (vermilion). <strong>Open:</strong> straight spread fingers to let go.</p></div><div><b>02 / STAMINA &amp; SHAKE-OUT</b><p>Crimps drain forearms 2.8× faster than Jugs; Pinches drain 1.7×. Lower a free hand below shoulder height to shake out forearm pump, or match a REST jug to recover core stamina.</p></div><div><b>03 / TWO-HAND DYNO</b><p>While holding with both hands, pull down hard or sweep side-to-side until DYNO READY lights up, then spread BOTH hands simultaneously to launch across the wall.</p></div></div><p class="fine-print">100% local MediaPipe inference in your browser. Press C at any time to pause and recenter your comfortable reach.</p>`,
   );
 function startReview() {
   cancelHandsFree();
@@ -1984,6 +2090,7 @@ function overlay() {
       if (!save.cleared.includes(key)) save.cleared.push(key);
       save.best[key] = Math.min(prevBest || Infinity, sim.time);
       persist();
+      renderFrontBoulderGrid();
       if (
         !checkpointPractice &&
         (prevBest === undefined || sim.time <= prevBest)
@@ -1994,7 +2101,7 @@ function overlay() {
         saveGhost(sim.route.id, bestGhost);
       }
     }
-    out.innerHTML = `<div class="overlay-card"><span class="eyebrow">${isReview ? "ROUTE REVIEW" : sim.state === "finished" ? "NICELY HELD." : "ONE MORE TRY."}</span><h2>${sim.state === "finished" ? "You found your flow." : "The next catch is yours."}</h2><p>${sim.state === "finished" ? `${sim.catchCount} catches · ${sim.time.toFixed(1)} seconds${sim.longestFlight >= 0.08 ? ` · ${sim.longestFlight.toFixed(2)}s flight` : ""}${sim.apexCatchCount ? ` · ${sim.apexCatchCount} apex` : ""}` : sim.lastCause || "Reach, pull, release. Timing makes the difference."}${isReview ? " · Review does not change your progress." : ""}</p><button class="primary" id="result-main">${isReview ? "Back to your climb" : sim.state === "finished" && index < 11 ? "Next route →" : "Try again ↻"}</button><div class="result-links"><button id="review">Review attempt</button>${lastCheckpoint && !isReview ? '<button id="checkpoint">Practice last catch</button>' : ""}<button id="save-replay">Save replay</button></div></div>`;
+    out.innerHTML = `<div class="overlay-card"><span class="eyebrow">${isReview ? "BETA REVIEW" : sim.state === "finished" ? `${sim.route.difficulty} · PROBLEM SENT!` : "OFF THE WALL"}</span><h2>${sim.state === "finished" ? "Top matched." : "Back on the mat."}</h2><p>${sim.state === "finished" ? `${sim.catchCount} catches · ${sim.time.toFixed(1)} seconds${sim.longestFlight >= 0.08 ? ` · ${sim.longestFlight.toFixed(2)}s flight` : ""}${sim.apexCatchCount ? ` · ${sim.apexCatchCount} apex` : ""}` : sim.lastCause || "Shake out your hands, read the holds, and commit to the pull."}${isReview ? " · Review does not change your progress." : ""}</p><button class="primary" id="result-main">${isReview ? "Back to your climb" : sim.state === "finished" && index < 11 ? "Next boulder →" : "Try again ↻"}</button><div class="result-links"><button id="review">Review attempt</button>${lastCheckpoint && !isReview ? '<button id="checkpoint">Practice last catch</button>' : ""}<button id="save-replay">Save replay</button></div></div>`;
     el("result-main").onclick = () =>
       retryRoute(
         !isReview && sim.state === "finished" ? Math.min(index + 1, 11) : index,
@@ -2095,11 +2202,84 @@ function hud() {
     (h) => h.checkpoint && sim.visited.has(h.id),
   ).length;
   el("progress-label").textContent =
-    `${done} holds used · Match TOP${sim.route.goal === "flight" ? (sim.flew ? " · FLIGHT ✓" : " · FLIGHT") : sim.route.goal === "cross" ? (sim.crossed ? " · CROSS ✓" : " · CROSS") : ""}`;
+    `Match TOP to send · ${done}/${total} holds${sim.flew ? " · DYNO ★" : ""}${sim.crossed ? " · CROSS ★" : ""}`;
   el("progress-fill").style.width =
     `${sim.state === "finished" ? 100 : (100 * done) / Math.max(1, total)}%`;
   el("clock").textContent =
     `${String(Math.floor(sim.time / 60)).padStart(2, "0")}:${String(Math.floor(sim.time % 60)).padStart(2, "0")}`;
+
+  // Update prominent HUD Stamina Panel (.stamina-panel)
+  const corePct = Math.round(clamp(sim.energy, 0, 1) * 100),
+    leftPct = Math.round(clamp(sim.reserve.left, 0, 1) * 100),
+    rightPct = Math.round(clamp(sim.reserve.right, 0, 1) * 100),
+    minReserve = Math.min(sim.reserve.left, sim.reserve.right),
+    isPumpedLow = minReserve < 0.35 || sim.exhausted,
+    isMidStamina = !isPumpedLow && (minReserve < 0.65 || sim.energy < 0.65),
+    shakingOut = hands.some((s) => sim.resting(s)),
+    restingHold =
+      hands.some((s) => sim.contacts[s]?.hold.label === "REST") &&
+      (shakingOut || (!!sim.contacts.left && !!sim.contacts.right));
+  el("core-stamina-fill").style.width = `${corePct}%`;
+  el("stamina-left-fill").style.width = `${leftPct}%`;
+  el("stamina-right-fill").style.width = `${rightPct}%`;
+  text("left-pump-pct", `${leftPct}%`);
+  text("right-pump-pct", `${rightPct}%`);
+  const stamPanel = el("stamina-panel");
+  stamPanel.classList.toggle("low", isPumpedLow);
+  stamPanel.classList.toggle("pumped", isPumpedLow);
+  stamPanel.classList.toggle("mid", isMidStamina);
+  stamPanel.classList.toggle("recovering", shakingOut || restingHold);
+  const stamStatus = isPumpedLow
+    ? "PUMPED!"
+    : restingHold
+      ? "RESTING"
+      : shakingOut
+        ? "SHAKING OUT"
+        : isMidStamina
+          ? "WORKING"
+          : "FRESH";
+  text("stamina-state", `${stamStatus} · ${corePct}%`);
+
+  // Update Live 4-Class Gesture Confidence Bars (.gesture-bars)
+  const gestureBarsEl = el("gesture-bars");
+  const showGestureBars = mode === "camera" || lab;
+  gestureBarsEl.classList.toggle("hidden", !showGestureBars);
+  if (showGestureBars) {
+    const meterSide: Hand =
+      !sim.contacts.left && sim.contacts.right
+        ? "left"
+        : !sim.contacts.right && sim.contacts.left
+          ? "right"
+          : selected;
+    const freshCam =
+      mode === "camera" &&
+      !isReview &&
+      !!camera.observation &&
+      performance.now() - camera.observation.t <= camera.maxFrameAgeMs;
+    const activeClass =
+      mode === "camera" && !isReview
+        ? freshCam
+          ? camera.grips[meterSide]
+          : "unknown"
+        : displayInput[selected].grip;
+    const rawScores =
+      mode === "camera" && !isReview ? camera.classScores[meterSide] : null;
+    for (const cls of ["jug", "crimp", "pinch", "release"] as const) {
+      const scoreVal = rawScores
+        ? freshCam
+          ? clamp(rawScores[cls] ?? 0, 0, 1)
+          : 0
+        : activeClass === cls
+          ? 1
+          : 0;
+      const pct = Math.round(scoreVal * 100);
+      el(`bar-${cls}`).style.width = `${pct}%`;
+      text(`score-${cls}`, `${pct}%`);
+      gestureBarsEl
+        .querySelector<HTMLElement>(`[data-gesture-class="${cls}"]`)
+        ?.classList.toggle("active", activeClass === cls);
+    }
+  }
   if (!lab && !isReview && mode === "camera") {
     const atTop = hands.some((side) => sim.contacts[side]?.hold.finish);
     const next =
@@ -2360,7 +2540,8 @@ function frame(t: number) {
       introHoldElapsed += dt;
       if (introHoldElapsed >= 1.2) {
         introHoldElapsed = 0;
-        void loadIntroShowcase(introPlaylistPos + 1);
+        if (introManualSelection) void previewIntroRoute(index);
+        else void loadIntroShowcase(introPlaylistPos + 1);
       }
     }
   }

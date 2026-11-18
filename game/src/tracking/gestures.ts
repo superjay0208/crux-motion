@@ -70,7 +70,23 @@ export function features(points: Landmark[], width = 1, height = 1): Features {
     (k) => 1 - angle(p[k + 1], p[k + 2], p[k + 3]),
   );
   const knuckles = [5, 9, 13, 17].map((k) => 1 - angle(p[0], p[k], p[k + 1]));
-  return [...bends, ...compact, spread, pinch, ...distal, ...knuckles];
+  const d3 = (a: Landmark, b: Landmark) =>
+    Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0));
+  const pinch12 = d3(p[4], p[12]) / scale;
+  const indexSpan = d3(p[8], p[5]) / scale;
+  const palmLen = Math.max(d3(p[0], p[9]), scale);
+  const thumbOut = Math.min(d3(p[4], p[5]), d3(p[4], p[9]) * 1.15) / palmLen;
+  return [
+    ...bends,
+    ...compact,
+    spread,
+    pinch,
+    ...distal,
+    ...knuckles,
+    pinch12,
+    indexSpan,
+    thumbOut,
+  ];
 }
 export const validFeatures = (f: Features | undefined): f is Features =>
   !!f && f.length >= 10 && f.every(Number.isFinite);
@@ -97,8 +113,8 @@ export function classify(
   f: Features,
   prototypes: Prototypes = {},
   previous: Grip = "unknown",
-): { grip: Grip; score: number } {
-  if (!validFeatures(f)) return { grip: "unknown", score: 0 };
+): { grip: Grip; score: number; classes: ClassScores } {
+  if (!validFeatures(f)) return { grip: "unknown", score: 0, classes: { jug: 0, crimp: 0, pinch: 0, release: 0 } };
   const fallback = geometricGrip(f);
   const entries = Object.entries(prototypes) as [
     Grip,
@@ -129,11 +145,20 @@ export function classify(
     if (
       ranked[0].score > 0.5 &&
       ranked[0].score - (ranked[1]?.score ?? 0) > 0.08
-    )
-      return ranked[0];
+    ) {
+      const winner = ranked[0].grip;
+      const merged = { ...fallback.classes };
+      if (winner !== "unknown")
+        merged[winner] = Math.max(merged[winner], ranked[0].score);
+      return { ...ranked[0], classes: merged };
+    }
     const sticky = ranked.find((r) => r.grip === previous);
-    if (sticky && sticky.score > 0.5 && ranked[0].score - sticky.score < 0.08)
-      return sticky;
+    if (sticky && sticky.score > 0.5 && ranked[0].score - sticky.score < 0.08) {
+      const merged = { ...fallback.classes };
+      if (sticky.grip !== "unknown")
+        merged[sticky.grip] = Math.max(merged[sticky.grip], sticky.score);
+      return { ...sticky, classes: merged };
+    }
     // Finishing only some calibration steps must not disable every untrained grip.
     if (!usable.some(([g]) => g === fallback.grip)) return fallback;
     if (
@@ -142,56 +167,146 @@ export function classify(
       fallback.score >= 0.88
     )
       return fallback;
-    return { grip: "unknown", score: ranked[0].score };
+    return { grip: "unknown", score: ranked[0].score, classes: fallback.classes };
   }
   return fallback;
 }
-function geometricGrip(f: Features): { grip: Grip; score: number } {
-  const curl = f.slice(0, 4).reduce((a, b) => a + b) / 4,
+export type ClassScores = Record<"jug" | "crimp" | "pinch" | "release", number>;
+
+const ramp = (e0: number, e1: number, x: number) =>
+  clamp((x - e0) / (e1 - e0), 0, 1);
+
+function geometricGrip(f: Features): { grip: Grip; score: number; classes: ClassScores } {
+  const bends = f.slice(0, 4).reduce((a, b) => a + b) / 4,
+    curl = bends,
     compact = f.slice(4, 8).reduce((a, b) => a + b) / 4;
+  const spread = f[8] ?? 0;
+  const pinch8 = f[9] ?? 1;
+  const minPinch = Math.min(pinch8, f[18] ?? pinch8);
+
+  let classes: ClassScores = { jug: 0, crimp: 0, pinch: 0, release: 0 };
+
   if (f.length >= 18) {
     const distal = f.slice(10, 14).reduce((a, b) => a + b) / 4;
     const knuckle = f.slice(14, 18).reduce((a, b) => a + b) / 4;
-    if (
-      Math.max(...f.slice(0, 4)) < 0.22 &&
-      Math.max(...f.slice(10, 14)) < 0.25 &&
-      Math.max(...f.slice(14, 18)) < 0.35 &&
-      compact > 1.75 &&
-      f[8] > 0.85
-    )
-      return { grip: "release", score: 0.96 };
-    if (
-      curl < 0.2 &&
-      distal < 0.22 &&
-      Math.max(...f.slice(0, 4)) < 0.28 &&
-      knuckle < 0.38 &&
-      compact > 1.4 &&
-      f[8] > 1.32 &&
-      f[9] > 0.6
-    )
-      return { grip: "release", score: 0.92 };
-    if (compact < 1.25 || (curl > 0.48 && distal > 0.3 && compact < 1.8))
-      return { grip: "jug", score: 0.9 };
-    if (curl > 0.27 && distal < 0.34 && knuckle < 0.48)
-      return { grip: "crimp", score: 0.9 };
-    if (f[9] < 0.55 && compact > 1.2 && (f[0] > 0.15 || f[14] > 0.2))
-      return { grip: "pinch", score: 0.9 };
-    if (
-      compact > 1.3 &&
-      compact < 2.6 &&
-      (knuckle > 0.23 || curl > 0.12) &&
-      f[8] < 1.45
-    )
-      return { grip: "sloper", score: 0.86 };
-    if (curl > 0.5 && compact < 1.8) return { grip: "jug", score: 0.82 };
-    return { grip: "unknown", score: 0.25 };
+    const maxBend = Math.max(...f.slice(0, 4));
+    const maxTipDist = Math.max(f[4] ?? compact, f[5] ?? compact);
+    const indexSpan = f[19] ?? (compact >= 1.25 ? 0.75 : 0.45);
+    const thumbOut = f[20] ?? (minPinch >= 0.5 ? 0.48 : 0.25);
+    const openness = 1 - (0.65 * bends + 0.35 * distal);
+    const rolledFist =
+      compact < 1.24 || (curl > 0.56 && knuckle > 0.36 && compact < 1.48);
+
+    // 1. Release: Open 5 / Spread Hand — 4 fingers extended, unpinched, not arched into a claw
+    const clearlyOpen =
+      !rolledFist &&
+      minPinch >= 0.48 &&
+      bends <= 0.28 &&
+      ((openness > 0.56 && compact > 1.36) ||
+        (curl < 0.34 && compact > 1.50) ||
+        (maxBend < 0.24 && compact > 1.65 && spread > 0.8));
+    const releaseScore = clearlyOpen
+      ? clamp(
+          0.88 +
+            0.06 * ramp(0.56, 0.88, openness) +
+            0.04 * ramp(1.45, 1.9, compact),
+          0.88,
+          0.98,
+        )
+      : minPinch < 0.48 || rolledFist || bends > 0.3
+        ? clamp(0.12 * ramp(0.42, 0.16, bends), 0.03, 0.12)
+        : clamp(0.22 * ramp(1.25, 1.6, compact) * ramp(0.38, 0.2, bends), 0.04, 0.22);
+
+    // 2. Jug: Full Closed Power Fist — all 4 fingers rolled into palm
+    const jugScore =
+      compact < 1.24
+        ? clamp(0.93 + 0.05 * ramp(1.24, 0.88, compact), 0.93, 0.98)
+        : curl > 0.56 && knuckle > 0.36 && compact < 1.48
+          ? clamp(0.90 + 0.06 * ramp(0.56, 0.78, curl), 0.90, 0.96)
+          : curl > 0.5 && distal > 0.28 && knuckle > 0.3 && compact < 1.68
+            ? 0.85
+            : clamp(
+                0.15 * ramp(1.75, 1.24, compact) * ramp(0.2, 0.56, knuckle),
+                0.03,
+                0.15,
+              );
+
+    // 3. Crimp: Arched 4-Finger Claw / Half-Crimp Hook — PIP bent, MCP open, unpinched
+    const clawCrimp =
+      !rolledFist &&
+      minPinch >= 0.46 &&
+      ((bends > 0.28 && knuckle < 0.42 && compact >= 1.25 && compact <= 1.88) ||
+        (bends > 0.27 && distal < 0.36 && knuckle < 0.46 && compact >= 1.24 && compact <= 1.92));
+    const crimpScore = clawCrimp
+      ? clamp(
+          0.90 +
+            0.05 * ramp(0.28, 0.52, bends) +
+            0.03 * ramp(0.42, 0.08, knuckle),
+          0.88,
+          0.96,
+        )
+      : rolledFist || minPinch < 0.46 || bends <= 0.24
+        ? clamp(0.12 * ramp(0.2, 0.4, bends) * (rolledFist ? 0.5 : 1), 0.03, 0.13)
+        : clamp(0.2 * ramp(0.24, 0.32, bends) * ramp(0.55, 0.35, knuckle), 0.04, 0.2);
+
+    // 4. Pinch: Opposed Thumb-to-Index/Middle Clamp out in front of palm (NEVER when rolledFist / compact < 1.24)
+    const beakPinch =
+      !rolledFist &&
+      compact >= 1.24 &&
+      minPinch < 0.48 &&
+      maxTipDist >= 1.25 &&
+      indexSpan > 0.62;
+    const cClampPinch =
+      !rolledFist &&
+      minPinch < 0.62 &&
+      compact > 1.30 &&
+      thumbOut > 0.35 &&
+      indexSpan > 0.62;
+    const pinchScore = rolledFist
+      ? clamp(0.08 * ramp(1.0, 1.24, compact), 0.02, 0.08)
+      : beakPinch
+        ? clamp(0.91 + 0.06 * ramp(0.48, 0.12, minPinch), 0.91, 0.97)
+        : cClampPinch
+          ? clamp(0.86 + 0.06 * ramp(0.62, 0.25, minPinch), 0.86, 0.92)
+          : clamp(0.14 * ramp(0.85, 0.48, minPinch), 0.03, 0.14);
+
+    classes = {
+      jug: jugScore,
+      crimp: crimpScore,
+      pinch: pinchScore,
+      release: releaseScore,
+    };
+
+    const entries = Object.entries(classes) as [keyof ClassScores, number][];
+    entries.sort((a, b) => b[1] - a[1]);
+    const [bestGrip, bestScore] = entries[0];
+    const runnerUp = entries[1][1];
+
+    if (bestScore >= 0.72 && bestScore - runnerUp >= 0.15) {
+      return { grip: bestGrip, score: bestScore, classes };
+    }
+    return { grip: "unknown", score: 0.25, classes };
   }
-  if (f[8] > 1.35 && curl < 0.25) return { grip: "release", score: 0.9 };
-  if (f[9] < 0.6 && compact > 1.1) return { grip: "pinch", score: 0.85 };
-  if (curl > 0.5 || compact < 1.2) return { grip: "jug", score: 0.85 };
-  if (curl > 0.26) return { grip: "crimp", score: 0.8 };
-  if (f[8] < 1.3) return { grip: "sloper", score: 0.8 };
-  return { grip: "unknown", score: 0.3 };
+
+  // Short feature vector fallback (10 features)
+  if (spread > 1.35 && curl < 0.25 && minPinch >= 0.5) {
+    classes = { jug: 0.08, crimp: 0.08, pinch: 0.08, release: 0.92 };
+    return { grip: "release", score: 0.92, classes };
+  }
+  if (minPinch < 0.55 && compact >= 1.24) {
+    classes = { jug: 0.08, crimp: 0.1, pinch: 0.88, release: 0.1 };
+    return { grip: "pinch", score: 0.88, classes };
+  }
+  if (curl > 0.5 || compact < 1.24) {
+    classes = { jug: 0.88, crimp: 0.1, pinch: 0.08, release: 0.08 };
+    return { grip: "jug", score: 0.88, classes };
+  }
+  if (curl > 0.26) {
+    classes = { jug: 0.1, crimp: 0.85, pinch: 0.1, release: 0.1 };
+    return { grip: "crimp", score: 0.85, classes };
+  }
+  classes = { jug: 0.25, crimp: 0.25, pinch: 0.2, release: 0.2 };
+  return { grip: "unknown", score: 0.25, classes };
 }
 export class GestureLatch {
   grip: Grip = "unknown";

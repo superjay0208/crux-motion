@@ -92,10 +92,17 @@ test("landing page loads with zero runtime errors, zero 4xx/5xx responses, and z
   await expect(page.locator("#camera-start")).toBeVisible();
   await expect(page.locator("#practice-start")).toBeVisible();
   await expect(page.locator("#wall")).toBeVisible();
+  await expect(page.locator("#front-boulder-grid .boulder-card")).toHaveCount(
+    12,
+  );
+  await expect(
+    page.locator("#front-boulder-grid .boulder-card[disabled]"),
+  ).toHaveCount(0);
 
   await expect
     .poll(() => page.evaluate(() => window.cruxMotion.snapshot.tick))
     .toBeGreaterThan(10);
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(0);
 
   await page.screenshot({
     path: resolve(screenshotsDir, "landing-desktop.jpg"),
@@ -103,15 +110,34 @@ test("landing page loads with zero runtime errors, zero 4xx/5xx responses, and z
     quality: 90,
   });
 
+  // Select boulder card 3 (Twin Fins) on landing, verify route updates, then return to 0
+  await page.locator('#front-boulder-grid [data-intro-route="3"]').click();
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(3);
+  await expect(
+    page.locator('#front-boulder-grid [data-intro-route="3"]'),
+  ).toHaveClass(/active/);
+
+  await page.locator('#front-boulder-grid [data-intro-route="0"]').click();
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(0);
+  await expect(
+    page.locator('#front-boulder-grid [data-intro-route="0"]'),
+  ).toHaveClass(/active/);
+
   await page.locator("#about-button").click();
   await expect(page.locator("#modal")).toHaveAttribute("open", "");
   await page.locator("#modal-close").click();
   await expect(page.locator("#modal")).not.toHaveAttribute("open", "");
 
+  // Verify selecting a boulder card on landing and clicking Practice enters that exact boulder
+  await page.locator('#front-boulder-grid [data-intro-route="3"]').click();
+  await page.locator("#practice-start").click();
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(3);
+  await expect(page.locator("#route-name")).toHaveText("Twin Fins");
+
   guards.assertClean();
 });
 
-test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pause/retry, Grip lab -> Watch beta (ATTEMPT REVIEW), routes, and Cross Current beta", async ({
+test("practice controls flow exercises canvas, wrist drag, stamina HUD, 3 grips, palm turn, pause/retry, Grip lab 4-class meter -> Watch beta (ATTEMPT REVIEW), routes, and Cross-Body beta", async ({
   page,
 }) => {
   await mkdir(screenshotsDir, { recursive: true });
@@ -123,8 +149,13 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
   await page.locator("#practice-start").click();
   await expect(page.locator("#intro")).toHaveClass(/hidden/);
   await expect(page.locator("#play-panel")).toBeVisible();
-  await expect(page.locator("#route-name")).toHaveText("Jug Ladder");
+  await expect(page.locator("#route-name")).toHaveText("Warmup Buckets");
   await expect(page.locator("#session-mode")).toHaveText("PRACTICE SESSION");
+  await expect(page.locator("#progress-label")).toContainText("Match TOP");
+  await expect(page.locator("#stamina-panel")).toBeVisible();
+  await expect(page.locator("#core-stamina-fill")).toBeAttached();
+  await expect(page.locator("#stamina-state")).toContainText("FRESH");
+  await expect(page.locator("[data-grip]")).toHaveCount(3);
 
   // Confirm #wall canvas renders non-empty pixels
   const canvasStats = await page.evaluate(() => {
@@ -195,11 +226,35 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
   // Focus #wall so window keydown listener processes practice keys
   await page.locator("#wall").focus();
 
-  // Grip keys 1–4
+  // Pull & hang so stamina drains and #stamina-panel updates live
+  await page.keyboard.down("KeyW");
+  await expect
+    .poll(
+      async () => {
+        const snap = await page.evaluate(() => ({
+          energy: window.cruxMotion.snapshot.energy,
+          minReserve: Math.min(
+            window.cruxMotion.snapshot.reserve.left,
+            window.cruxMotion.snapshot.reserve.right,
+          ),
+          rightPct: document.querySelector("#right-pump-pct")?.textContent ?? "",
+          leftPct: document.querySelector("#left-pump-pct")?.textContent ?? "",
+        }));
+        return (
+          snap.energy < 1 &&
+          snap.minReserve < 0.99 &&
+          (snap.rightPct !== "100%" || snap.leftPct !== "100%")
+        );
+      },
+      { timeout: 5_000 },
+    )
+    .toBe(true);
+  await page.keyboard.up("KeyW");
+
+  // Grip keys 1–3 (Jug, Crimp, Pinch)
   for (const [key, grip] of [
     ["2", "crimp"],
-    ["3", "sloper"],
-    ["4", "pinch"],
+    ["3", "pinch"],
     ["1", "jug"],
   ] as const) {
     await page.keyboard.press(key);
@@ -228,16 +283,26 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
     .toBe("playing");
   await expect(page.locator("#game-overlay")).toHaveClass(/hidden/);
 
-  // Retry R resets route to ready state
+  // Retry R resets route to ready state and restores fresh stamina
   await page.keyboard.press("KeyR");
   await expect
     .poll(() => page.evaluate(() => window.cruxMotion.snapshot.state))
     .toBe("ready");
+  await expect(page.locator("#stamina-state")).toHaveText("FRESH · 100%");
 
-  // Open Grip lab (#lab-button) and capture Grip lab desktop screenshot
+  // Open Grip lab (#lab-button), verify 4-class gesture meter, and capture Grip lab desktop screenshot
   await page.locator("#lab-button").click();
   await expect(page.locator("#route-name")).toHaveText("Grip lab");
   await expect(page.locator("#session-mode")).toHaveText("GESTURE LAB");
+  await expect(page.locator("#gesture-bars")).toBeVisible();
+  await expect(
+    page.locator("#gesture-bars [data-gesture-class]"),
+  ).toHaveCount(4);
+  for (const cls of ["jug", "crimp", "pinch", "release"] as const) {
+    await expect(
+      page.locator(`#gesture-bars [data-gesture-class="${cls}"]`),
+    ).toBeVisible();
+  }
   await page.locator("#resume").click();
   await expect(page.locator("#game-overlay")).toHaveClass(/hidden/);
   await expect
@@ -253,7 +318,7 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
   // Click #watch-beta from Grip lab -> verify lab=false resets #session-mode to ATTEMPT REVIEW
   await page.locator("#watch-beta").click();
   await expect(page.locator("#session-mode")).toHaveText("ATTEMPT REVIEW");
-  await expect(page.locator("#route-name")).toHaveText("Jug Ladder");
+  await expect(page.locator("#route-name")).toHaveText("Warmup Buckets");
   const initialSnap = await page.evaluate(() => window.cruxMotion.snapshot);
   await expect
     .poll(
@@ -271,14 +336,16 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
     )
     .toBe(true);
 
-  // Open #routes-button, verify 12 routes, select Cross Current (route 1), and capture crossed-arm beta frame
+  // Open #routes-button, verify 12 unlocked routes, select Cross-Body (route 5), and capture crossed-arm beta frame
   await page.locator("#routes-button").click();
   await expect(page.locator("#modal")).toHaveAttribute("open", "");
   await expect(page.locator("#modal [data-route]")).toHaveCount(12);
-  await page.locator('#modal [data-route="1"]').click();
+  await expect(page.locator("#modal [data-route][disabled]")).toHaveCount(0);
+  await page.locator('#modal [data-route="5"]').click();
   await expect(page.locator("#modal")).not.toHaveAttribute("open", "");
-  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(1);
-  await expect(page.locator("#route-name")).toHaveText("Cross Current");
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(5);
+  await expect(page.locator("#route-name")).toHaveText("Cross-Body");
+  await expect(page.locator("#progress-label")).toContainText("Match TOP");
 
   await page.locator("#watch-beta").click();
   await expect(page.locator("#session-mode")).toHaveText("ATTEMPT REVIEW");
@@ -288,6 +355,7 @@ test("practice controls flow exercises canvas, wrist drag, grips, palm turn, pau
       { timeout: 10_000 },
     )
     .toBe(true);
+  await expect(page.locator("#progress-label")).toContainText("Match TOP");
 
   await page.screenshot({
     path: resolve(screenshotsDir, "cross-current-beta.jpg"),
@@ -408,6 +476,7 @@ for (const cfg of [
       for (const selector of [
         "#wall",
         "#play-panel",
+        "#stamina-panel",
         "#retry",
         "#pause",
         "#routes-button",
@@ -524,19 +593,20 @@ test("diagnostics worker inference runs both paired and holistic providers offli
   guards.assertClean();
 });
 
-test("First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV/#release-both flight, and captures Watch Beta dyno impact frame", async ({
+test("Launchpad (motion-07) charges dyno momentum, triggers simultaneous KeyV/#release-both flight, and captures Watch Beta dyno impact frame", async ({
   page,
 }) => {
   await mkdir(screenshotsDir, { recursive: true });
   await page.setViewportSize({ width: 1280, height: 720 });
   const guards = attachRuntimeGuards(page);
 
-  await page.goto("/?route=motion-09");
+  await page.goto("/?route=motion-07");
   await page.evaluate(() => document.fonts.ready);
 
   await page.locator("#practice-start").click();
-  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(8);
-  await expect(page.locator("#route-name")).toHaveText("First Flight");
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(6);
+  await expect(page.locator("#route-name")).toHaveText("Launchpad");
+  await expect(page.locator("#stamina-panel")).toBeVisible();
   await expect(page.locator("#release-both")).toBeVisible();
   await expect(page.locator(".motion-feedback")).toBeVisible();
 
@@ -612,10 +682,10 @@ test("First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV
     .poll(() => page.evaluate(() => window.cruxMotion.snapshot.contacts))
     .toEqual([null, null]);
 
-  // Run First Flight Watch Beta and capture crisp dyno catch impact frame screenshot
+  // Run Launchpad Watch Beta and capture crisp dyno catch impact frame screenshot
   await page.locator("#watch-beta").click();
   await expect(page.locator("#session-mode")).toHaveText("ATTEMPT REVIEW");
-  await expect(page.locator("#route-name")).toHaveText("First Flight");
+  await expect(page.locator("#route-name")).toHaveText("Launchpad");
 
   await page.evaluate(
     () =>
@@ -628,7 +698,7 @@ test("First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV
           }
           if (performance.now() > deadline) {
             rejectPromise(
-              new Error("Timed out waiting for First Flight dyno catch impact"),
+              new Error("Timed out waiting for Launchpad dyno catch impact"),
             );
             return;
           }
@@ -644,8 +714,8 @@ test("First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV
     quality: 92,
   });
 
-  // Verify play-panel and release-both stay unclipped within 1280x720
-  for (const selector of ["#wall", "#play-panel", "#release-both"]) {
+  // Verify play-panel, stamina-panel, and release-both stay unclipped within 1280x720
+  for (const selector of ["#wall", "#play-panel", "#stamina-panel", "#release-both"]) {
     const box = await page.locator(selector).boundingBox();
     expect(box, `${selector} box`).not.toBeNull();
     expect(box!.y).toBeGreaterThanOrEqual(-1);

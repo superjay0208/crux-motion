@@ -307,20 +307,39 @@ try {
     }
   };
 
-  // 1. Initial Landing Load, Font, Asset Budget & Autonomous Intro Showcase
+  // 1. Initial Landing Load, Fonts, Asset Budget & Autonomous Intro Showcase
   await page.goto(baseUrl, { waitUntil: "load" });
-  const fontLoaded = await page.evaluate(async () => {
-    await document.fonts.load('16px "Display"');
+  const fontsCheck = await page.evaluate(async () => {
+    await Promise.all([
+      document.fonts.load('16px "Fredoka"'),
+      document.fonts.load('16px "Bebas Neue"'),
+      document.fonts.load('16px "Display"'),
+    ]);
     await document.fonts.ready;
-    return document.fonts.check('16px "Display"');
+    return {
+      fredoka: document.fonts.check('16px "Fredoka"'),
+      bebasNeue: document.fonts.check('16px "Bebas Neue"'),
+      display: document.fonts.check('16px "Display"'),
+    };
   });
-  if (!fontLoaded) {
-    throw new Error('Display font ("Display") failed to load.');
+  if (!fontsCheck.fredoka || !fontsCheck.bebasNeue || !fontsCheck.display) {
+    throw new Error(
+      `Self-hosted fonts failed to load: ${JSON.stringify(fontsCheck)}`,
+    );
   }
+  const fontLoaded = true;
 
   await page.locator("#intro").waitFor({ state: "visible" });
   await page.locator("#practice-start").waitFor({ state: "visible" });
   await page.locator("#camera-start").waitFor({ state: "visible" });
+  const introRouteCount = await page
+    .locator("#front-boulder-grid [data-intro-route]")
+    .count();
+  if (introRouteCount !== 12) {
+    throw new Error(
+      `Expected 12 open boulder cards on landing (#front-boulder-grid [data-intro-route]), got ${introRouteCount}.`,
+    );
+  }
 
   // Wait for live intro showcase simulation ticks to advance
   await page.waitForFunction(
@@ -407,6 +426,7 @@ try {
   // 3. Gameplay, Practice 180-frame Perf Gate, Watch Beta & Persistence Across Reload
   await page.locator("#practice-start").click();
   await page.locator("#play-panel").waitFor({ state: "visible" });
+  await page.locator("#stamina-panel").waitFor({ state: "visible" });
   await page.locator("#resume").waitFor({ state: "visible" });
   await page.locator("#resume").click();
   await page.locator("#wall").focus();
@@ -436,14 +456,14 @@ try {
     { timeout: 10000 },
   );
 
-  // Verify #routes-button switches route to Cross Current (index 1)
+  // Verify #routes-button switches route to Campus Rungs (index 1)
   await page.locator("#routes-button").click();
   await page.locator('#modal[open] [data-route="1"]').click();
   const switchedRoute = await page.evaluate(() => ({
     index: window.cruxMotion.route,
     name: document.querySelector("#route-name")?.textContent ?? "",
   }));
-  if (switchedRoute.index !== 1 || switchedRoute.name !== "Cross Current") {
+  if (switchedRoute.index !== 1 || switchedRoute.name !== "Campus Rungs") {
     throw new Error(
       `Route selection failed: ${JSON.stringify(switchedRoute)}`,
     );
@@ -495,7 +515,7 @@ try {
   if (
     deepLinkIntroRoute !== 8 ||
     deepLinkPractice.route !== 8 ||
-    deepLinkPractice.routeName !== "First Flight"
+    deepLinkPractice.routeName !== "Split Decision"
   ) {
     throw new Error(
       `Deep-link ?route=motion-09 failed: introRoute=${deepLinkIntroRoute}, practice=${JSON.stringify(deepLinkPractice)}`,
@@ -557,6 +577,8 @@ try {
       responseBodyBytes: responseBytes,
       heavyCameraAssetsOnLanding: heavyOnLanding.length,
       displayFontLoaded: fontLoaded,
+      fontsLoaded: fontsCheck,
+      openBouldersOnLanding: introRouteCount,
       subpathSolutionCheck: solutionCheck,
       wallDemoTickAttr: navMetrics.wallDemoTickAttr,
       wallCaption: navMetrics.wallCaption,

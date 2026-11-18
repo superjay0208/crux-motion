@@ -157,6 +157,12 @@ export class Simulation {
     });
     if (this.events.length > 128) this.events.shift();
   }
+  pumped(side: Hand): boolean {
+    return this.reserve[side] < 0.35;
+  }
+  get exhausted(): boolean {
+    return this.energy < 0.30;
+  }
   resting(side: Hand): boolean {
     return (
       !this.contacts[side] &&
@@ -236,7 +242,7 @@ export class Simulation {
         this.dynoLaunch = false;
         this.dynoLaunchPower = 1;
         this.clearDynoWindow(false);
-        if (this.route.goal === "flight" && !slip) {
+        if (!slip) {
           flightHint = !simultaneous
             ? "Release both hands at the same time to dyno"
             : "Build swing or push-up momentum before releasing both hands";
@@ -350,19 +356,15 @@ export class Simulation {
     const f =
       c.hold.kind === "crimp"
         ? 2.5
-        : c.hold.kind === "sloper"
-          ? 2.0
-          : c.hold.kind === "pinch"
-            ? 2.6
-            : 2.8;
+        : c.hold.kind === "pinch"
+          ? 2.6
+          : 2.8;
     const t =
       c.hold.kind === "crimp"
         ? 1.2
-        : c.hold.kind === "sloper"
-          ? 0.55
-          : c.hold.kind === "pinch"
-            ? 1.3
-            : 1.6;
+        : c.hold.kind === "pinch"
+          ? 1.3
+          : 1.6;
     const reserve = this.fatigue
       ? (0.1 + 0.9 * this.reserve[side]) * (0.25 + 0.75 * this.energy)
       : 1;
@@ -370,7 +372,7 @@ export class Simulation {
       wrong = clamp(1 - Math.max(0, c.wrong - 0.18) / 0.22, 0.05, 1);
     c.joint.normal = 589 * f * reserve * ramp * wrong;
     c.joint.tangent = 589 * t * reserve * ramp * wrong;
-    c.joint.mu = c.hold.kind === "sloper" ? 0.32 : 1.2;
+    c.joint.mu = 1.2;
     c.joint.broad = c.hold.kind === "jug" && c.hold.direction.y > 0.5;
     c.joint.setMaxForce(Math.hypot(c.joint.normal, c.joint.tangent));
   }
@@ -755,20 +757,67 @@ export class Simulation {
             c.wrong > 0.4 ? "Grip changed" : `Grip overloaded`,
             true,
           );
-        if (this.fatigue)
+        if (this.fatigue) {
+          // Forearm drain: Jug ~0.014/s base at 1g, Pinch 1.7x, Crimp 2.8x
+          const gripDrain =
+            c.hold.kind === "crimp"
+              ? 2.8
+              : c.hold.kind === "pinch"
+                ? 1.7
+                : 1.0;
           this.reserve[side] = clamp(
             this.reserve[side] -
               this.dt *
-                (0.003 + 0.012 * Math.min(3, c.load) ** 1.5) *
-                (c.hold.kind === "crimp" ? 3 : 1),
+                0.014 *
+                gripDrain *
+                (0.55 + 0.45 * Math.min(3, c.load) ** 1.4),
             0,
             1,
           );
-      } else if (this.input[side].target.y < 0.2 && this.fatigue)
-        this.reserve[side] = clamp(this.reserve[side] + 0.05 * this.dt, 0, 1);
+        }
+      } else if (this.resting(side) && this.fatigue)
+        this.reserve[side] = clamp(this.reserve[side] + 0.085 * this.dt, 0, 1);
     }
-    if (this.fatigue)
-      this.energy = clamp(this.energy - 0.002 * this.dt - work / 120000, 0, 1);
+    if (this.fatigue) {
+      const onStartOrRest = hands.some((s) => {
+        const c = this.contacts[s];
+        return (
+          c &&
+          c.hold.kind === "jug" &&
+          (c.hold.label === "START" || c.hold.label === "REST")
+        );
+      });
+      const onRestJug = hands.some((s) => {
+        const c = this.contacts[s];
+        return c && c.hold.kind === "jug" && c.hold.label === "REST";
+      });
+      const restingOnRest =
+        onRestJug &&
+        (supportCount === 2 || hands.some((s) => this.resting(s)));
+      const hangDrain =
+        supportCount > 0 ? (onStartOrRest ? 0.0025 : 0.008) * this.dt : 0;
+      const passiveFloor = onStartOrRest
+        ? supportCount === 2
+          ? 0.55
+          : restingOnRest
+            ? 1.05
+            : 0
+        : 0;
+      const effortDrain = hands.reduce((sum, s) => {
+        const c = this.contacts[s];
+        return (
+          sum + (c ? 0.006 * Math.max(0, c.load - passiveFloor) * this.dt : 0)
+        );
+      }, 0);
+      this.energy = clamp(
+        this.energy - hangDrain - effortDrain - work / 90000,
+        0,
+        1,
+      );
+      if (restingOnRest) {
+        this.energy = clamp(this.energy + 0.012 * this.dt, 0, 1);
+      }
+    }
     this.updateDynoMomentum(anchored);
     const count = hands.filter((s) => this.contacts[s]).length;
     if (!count) {
@@ -794,13 +843,10 @@ export class Simulation {
       }
       this.flight += this.dt;
     } else if (this.flight > 0) this.flight = 0;
+    // Keep crossed/flew/undercling as optional style telemetry
     if (this.rig.hand("left").x > this.rig.hand("right").x + 0.12 && count > 0)
       this.crossed = true;
-    const goal =
-      this.route.goal === "none" ||
-      (this.route.goal === "cross" && this.crossed) ||
-      (this.route.goal === "flight" && this.flew) ||
-      (this.route.goal === "undercling" && this.undercling);
+    // Pure "Match Top to Win" — matching both hands on finish hold for 0.35s wins
     if (
       this.rig.com().y < this.route.fallY ||
       !Number.isFinite(this.rig.com().y)
@@ -809,8 +855,7 @@ export class Simulation {
       this.emit("fall", this.rig.com(), this.lastCause || "Missed the catch");
     } else if (
       count === 2 &&
-      hands.every((s) => this.contacts[s]?.hold.finish) &&
-      goal
+      hands.every((s) => this.contacts[s]?.hold.finish)
     ) {
       this.finishDwell += this.dt;
       if (this.finishDwell >= 0.35) {

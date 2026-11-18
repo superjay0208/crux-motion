@@ -38,7 +38,7 @@ export function validateReplay(value: unknown): Replay {
         !Number.isFinite(i.target?.y) ||
         Math.abs(i.target.x) > 100 ||
         Math.abs(i.target.y) > 100 ||
-        !["jug", "crimp", "sloper", "pinch", "release", "unknown"].includes(
+        !["jug", "crimp", "pinch", "release", "unknown"].includes(
           i.grip,
         ) ||
         !["up", "down", "side"].includes(i.orientation) ||

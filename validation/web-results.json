@@ -83,12 +83,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 71,
+                  "duration": 104,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:35.692Z",
+                  "startTime": "2026-11-18T05:36:11.834Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -117,12 +117,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 91,
+                  "duration": 85,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:35.782Z",
+                  "startTime": "2026-11-18T05:36:11.954Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -151,12 +151,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 64,
+                  "duration": 60,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:35.881Z",
+                  "startTime": "2026-11-18T05:36:12.047Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -185,12 +185,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 68,
+                  "duration": 65,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:35.951Z",
+                  "startTime": "2026-11-18T05:36:12.114Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -219,12 +219,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 24,
+                  "duration": 21,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:36.027Z",
+                  "startTime": "2026-11-18T05:36:12.187Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -258,7 +258,7 @@
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:36.059Z",
+                  "startTime": "2026-11-18T05:36:12.217Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -287,12 +287,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 6,
+                  "duration": 5,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:36.078Z",
+                  "startTime": "2026-11-18T05:36:12.236Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -329,12 +329,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1005,
+                  "duration": 1461,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:36.122Z",
+                  "startTime": "2026-11-18T05:36:12.281Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -348,7 +348,7 @@
           "column": 1
         },
         {
-          "title": "practice controls flow exercises canvas, wrist drag, grips, palm turn, pause/retry, Grip lab -> Watch beta (ATTEMPT REVIEW), routes, and Cross Current beta",
+          "title": "practice controls flow exercises canvas, wrist drag, stamina HUD, 3 grips, palm turn, pause/retry, Grip lab 4-class meter -> Watch beta (ATTEMPT REVIEW), routes, and Cross-Body beta",
           "ok": true,
           "tags": [],
           "tests": [
@@ -363,12 +363,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3193,
+                  "duration": 3741,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:37.456Z",
+                  "startTime": "2026-11-18T05:36:14.046Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -376,9 +376,9 @@
               "status": "expected"
             }
           ],
-          "id": "a8475ef9564cfbc88065-a37c96330397a3523dbc",
+          "id": "a8475ef9564cfbc88065-d6075f8645deabcff1c8",
           "file": "gameplay.spec.ts",
-          "line": 71,
+          "line": 88,
           "column": 1
         },
         {
@@ -397,12 +397,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1418,
+                  "duration": 1705,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:40.659Z",
+                  "startTime": "2026-11-18T05:36:17.801Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -412,7 +412,7 @@
           ],
           "id": "a8475ef9564cfbc88065-e1426ad890f01b335527",
           "file": "gameplay.spec.ts",
-          "line": 231,
+          "line": 280,
           "column": 1
         },
         {
@@ -431,12 +431,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 422,
+                  "duration": 487,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:42.086Z",
+                  "startTime": "2026-11-18T05:36:19.524Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -446,7 +446,7 @@
           ],
           "id": "a8475ef9564cfbc88065-f578ad5ef7b45f91d4e9",
           "file": "gameplay.spec.ts",
-          "line": 314,
+          "line": 363,
           "column": 3
         },
         {
@@ -465,12 +465,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 420,
+                  "duration": 483,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:42.518Z",
+                  "startTime": "2026-11-18T05:36:20.023Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -480,7 +480,7 @@
           ],
           "id": "a8475ef9564cfbc88065-20155ff8ed15754e1d86",
           "file": "gameplay.spec.ts",
-          "line": 314,
+          "line": 363,
           "column": 3
         },
         {
@@ -499,12 +499,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 421,
+                  "duration": 481,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:42.949Z",
+                  "startTime": "2026-11-18T05:36:20.516Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -514,7 +514,7 @@
           ],
           "id": "a8475ef9564cfbc88065-faf95ff07093d108abde",
           "file": "gameplay.spec.ts",
-          "line": 314,
+          "line": 363,
           "column": 3
         },
         {
@@ -533,12 +533,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 7736,
+                  "duration": 7741,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:43.376Z",
+                  "startTime": "2026-11-18T05:36:21.007Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -548,11 +548,11 @@
           ],
           "id": "a8475ef9564cfbc88065-7889a93c0342341914c4",
           "file": "gameplay.spec.ts",
-          "line": 347,
+          "line": 396,
           "column": 1
         },
         {
-          "title": "First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV/#release-both flight, and captures Watch Beta dyno impact frame",
+          "title": "Launchpad (motion-07) charges dyno momentum, triggers simultaneous KeyV/#release-both flight, and captures Watch Beta dyno impact frame",
           "ok": true,
           "tags": [],
           "tests": [
@@ -567,12 +567,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3893,
+                  "duration": 3424,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-18T03:49:51.124Z",
+                  "startTime": "2026-11-18T05:36:28.763Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -580,9 +580,9 @@
               "status": "expected"
             }
           ],
-          "id": "a8475ef9564cfbc88065-6605b78c3d6a336eb8fe",
+          "id": "a8475ef9564cfbc88065-4924a094870db2e1141f",
           "file": "gameplay.spec.ts",
-          "line": 406,
+          "line": 455,
           "column": 1
         }
       ]
@@ -590,8 +590,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-18T03:49:34.056Z",
-    "duration": 21670.178,
+    "startTime": "2026-11-18T05:36:10.075Z",
+    "duration": 22823.605,
     "expected": 15,
     "skipped": 0,
     "unexpected": 0,

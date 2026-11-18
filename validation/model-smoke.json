@@ -1,19 +1,19 @@
 {
   "kind": "Real browser execution on five generated blank frames per provider; not human tracking accuracy or motion-to-photon latency",
   "url": "http://127.0.0.1:4318/diagnostics.html",
-  "recordedAt": "2026-11-18T03:49:51.095Z",
+  "recordedAt": "2026-11-18T05:36:28.727Z",
   "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "reports": [
     {
       "provider": "paired",
       "frames": 5,
-      "initializationAndRunMs": 4881.5,
+      "initializationAndRunMs": 4675.39999999851,
       "inferenceMs": [
-        4522,
-        18.300000000745058,
-        16.400000002235174,
-        16,
-        16.300000000745058
+        4316.19999999553,
+        17.599999994039536,
+        15.799999997019768,
+        16.100000001490116,
+        15.100000001490116
       ],
       "detectedHands": 0,
       "pass": true,
@@ -22,13 +22,13 @@
     {
       "provider": "holistic",
       "frames": 5,
-      "initializationAndRunMs": 2454.300000000745,
+      "initializationAndRunMs": 2427.89999999851,
       "inferenceMs": [
-        2182.60000000149,
-        11,
-        9.799999997019768,
-        9.199999999254942,
-        8.800000000745058
+        2143.5,
+        10.900000005960464,
+        9.600000001490116,
+        8.899999998509884,
+        8.700000002980232
       ],
       "detectedHands": 0,
       "pass": true,

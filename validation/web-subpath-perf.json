@@ -1,7 +1,7 @@
 {
-  "url": "http://127.0.0.1:62299/crux-motion/",
+  "url": "http://127.0.0.1:53796/crux-motion/",
   "mode": "subpath",
-  "recordedAt": "2026-11-18T03:50:44.943Z",
+  "recordedAt": "2026-11-18T05:37:05.456Z",
   "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "runtimeHygiene": {
     "pageErrors": 0,
@@ -10,49 +10,55 @@
     "externalRequests": 0
   },
   "initialLoad": {
-    "domContentLoadedMs": 79.2,
-    "loadEventMs": 87,
+    "domContentLoadedMs": 69.3,
+    "loadEventMs": 162.1,
     "fcpMs": null,
-    "requestsCount": 6,
-    "transferBytes": 516227,
-    "responseBodyBytes": 514427,
+    "requestsCount": 9,
+    "transferBytes": 890609,
+    "responseBodyBytes": 887909,
     "heavyCameraAssetsOnLanding": 0,
     "displayFontLoaded": true,
+    "fontsLoaded": {
+      "fredoka": true,
+      "bebasNeue": true,
+      "display": true
+    },
+    "openBouldersOnLanding": 12,
     "subpathSolutionCheck": {
       "ok": true,
       "status": 200,
       "route": "motion-01",
       "controller": "anchors",
-      "frames": 82
+      "frames": 86
     },
-    "wallDemoTickAttr": "22",
-    "wallCaption": "01 / JUG LADDERReach · Catch · Match"
+    "wallDemoTickAttr": "15",
+    "wallCaption": "01 / WARMUP BUCKETSB1 · Jugs"
   },
   "performance": {
     "introShowcase180Frames": {
       "frames": 180,
-      "elapsedMs": 3048,
-      "simTicksAdvanced": 223,
-      "fps": 59.06,
+      "elapsedMs": 3046.7,
+      "simTicksAdvanced": 253,
+      "fps": 59.08,
       "frameDeltaP50Ms": 16.7,
       "frameDeltaP95Ms": 16.8,
-      "frameDeltaMaxMs": 50,
-      "frameWorkMeanMs": 0.83,
-      "frameWorkP50Ms": 0.8,
+      "frameDeltaMaxMs": 16.8,
+      "frameWorkMeanMs": 1.03,
+      "frameWorkP50Ms": 1,
       "frameWorkP95Ms": 1.3,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     },
     "practiceClimb180Frames": {
       "frames": 180,
-      "elapsedMs": 3016.4,
+      "elapsedMs": 3017.3,
       "simTicksAdvanced": 362,
-      "fps": 59.67,
+      "fps": 59.66,
       "frameDeltaP50Ms": 16.7,
       "frameDeltaP95Ms": 16.8,
-      "frameDeltaMaxMs": 17.1,
-      "frameWorkMeanMs": 1.14,
-      "frameWorkP50Ms": 1.1,
+      "frameDeltaMaxMs": 16.8,
+      "frameWorkMeanMs": 1.34,
+      "frameWorkP50Ms": 1.3,
       "frameWorkP95Ms": 1.6,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
@@ -61,48 +67,48 @@
   "features": {
     "routeModalSwitch": {
       "index": 1,
-      "name": "Cross Current"
+      "name": "Campus Rungs"
     },
     "assistedPersistenceReload": true,
     "deepLinkMotion09": {
       "route": 8,
-      "routeName": "First Flight"
+      "routeName": "Split Decision"
     }
   },
   "diagnostics": {
-    "url": "http://127.0.0.1:62299/crux-motion/diagnostics.html",
+    "url": "http://127.0.0.1:53796/crux-motion/diagnostics.html",
     "reports": [
       {
         "provider": "paired",
         "frames": 5,
-        "initializationAndRunMs": 4839,
+        "initializationAndRunMs": 4728.60000000149,
         "inferenceMs": [
-          4478,
-          16.300000000745058,
-          15.700000002980232,
-          15.800000000745058,
-          15.5
+          4364.79999999702,
+          17.599999994039536,
+          16.30000000447035,
+          15.5,
+          15.199999995529652
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 15.83
+        "steadyStateMeanMs": 16.15
       },
       {
         "provider": "holistic",
         "frames": 5,
-        "initializationAndRunMs": 2401.5,
+        "initializationAndRunMs": 2381.6999999955297,
         "inferenceMs": [
-          2144.300000000745,
+          2094.3000000044703,
           10.5,
-          9.300000000745058,
-          9.700000002980232,
-          8.900000002235174
+          9.300000004470348,
+          8.600000001490116,
+          8.5
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 9.6
+        "steadyStateMeanMs": 9.23
       }
     ]
   }

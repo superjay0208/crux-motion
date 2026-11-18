@@ -1,308 +1,269 @@
 {
-  "generatedAt": "2026-11-18T03:22:54.712Z",
+  "generatedAt": "2026-11-18T05:35:34.499Z",
   "kind": "synthetic semantic controls through real physics; not real-camera validation",
   "results": [
     {
       "route": "motion-01",
-      "name": "Jug Ladder",
+      "name": "Warmup Buckets",
       "pass": true,
       "freshReplay": true,
-      "ticks": 358,
-      "seconds": 2.9833333333333254,
+      "ticks": 316,
+      "seconds": 2.6333333333333266,
       "catches": 5,
       "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9658508799193339,
-        "right": 0.9665236749762562
+        "left": 0.97092344651114,
+        "right": 0.9683704446784471
       },
-      "overallReserve": 0.9814288324353165,
+      "overallReserve": 0.9419891059393033,
       "config": {
-        "y": 0.35,
-        "offset": 0,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-02",
-      "name": "Cross Current",
+      "name": "Campus Rungs",
       "pass": true,
       "freshReplay": true,
-      "ticks": 628,
-      "seconds": 5.233333333333383,
-      "catches": 5,
-      "crossed": true,
+      "ticks": 421,
+      "seconds": 3.5083333333333235,
+      "catches": 7,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.944704546748338,
-        "right": 0.9418530621946166
+        "left": 0.9629305025781912,
+        "right": 0.9571333316971888
       },
-      "overallReserve": 0.9656573670988976,
+      "overallReserve": 0.920561501117707,
       "config": {
-        "y": 0.35,
-        "offset": 0.8,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-03",
-      "name": "Edge Etiquette",
+      "name": "Razor Edges",
       "pass": true,
       "freshReplay": true,
-      "ticks": 878,
-      "seconds": 7.31666666666682,
+      "ticks": 319,
+      "seconds": 2.6583333333333266,
       "catches": 5,
-      "crossed": true,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9045332527561948,
-        "right": 0.8987224275144643
+        "left": 0.9448291114410752,
+        "right": 0.9557551810115187
       },
-      "overallReserve": 0.9626683867245792,
+      "overallReserve": 0.9463949461092052,
       "config": {
-        "y": 0.35,
-        "offset": 0.6,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-04",
-      "name": "Pendulum Bay",
+      "name": "Twin Fins",
       "pass": true,
       "freshReplay": true,
-      "ticks": 726,
-      "seconds": 6.05000000000009,
+      "ticks": 369,
+      "seconds": 3.0749999999999917,
       "catches": 6,
-      "crossed": true,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9611951943521962,
-        "right": 0.9078207590154265
+        "left": 0.9541474498678498,
+        "right": 0.9557389712295743
       },
-      "overallReserve": 0.9640221079532205,
+      "overallReserve": 0.9389637032551371,
       "config": {
-        "y": 0.35,
-        "offset": 0.8,
-        "settle": 0,
+        "y": 0.3,
+        "settle": 25,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-05",
-      "name": "Soft Landing",
+      "name": "Pendulum Traverse",
       "pass": true,
       "freshReplay": true,
-      "ticks": 509,
-      "seconds": 4.241666666666667,
+      "ticks": 343,
+      "seconds": 2.858333333333326,
       "catches": 6,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9501123518912632,
-        "right": 0.9590296209419482
+        "left": 0.9662886227361731,
+        "right": 0.962431171758993
       },
-      "overallReserve": 0.9707210407742051,
+      "overallReserve": 0.934026366850776,
       "config": {
-        "y": 0.25,
-        "offset": 0.8,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-06",
-      "name": "Under the Lip",
+      "name": "Cross-Body",
       "pass": true,
       "freshReplay": true,
-      "ticks": 443,
-      "seconds": 3.691666666666656,
+      "ticks": 328,
+      "seconds": 2.7333333333333263,
       "catches": 5,
-      "crossed": true,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
-      "undercling": true,
+      "undercling": false,
       "remainingReserve": {
-        "left": 0.9576587562387642,
-        "right": 0.9633501692202818
+        "left": 0.9634052731665305,
+        "right": 0.9630928319740165
       },
-      "overallReserve": 0.9780179635152584,
+      "overallReserve": 0.9399247325403137,
       "config": {
-        "y": 0.35,
-        "offset": 0.6,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-07",
-      "name": "Pinch Point",
+      "name": "Launchpad",
       "pass": true,
       "freshReplay": true,
-      "ticks": 964,
-      "seconds": 8.033333333333518,
-      "catches": 6,
-      "crossed": true,
-      "flew": false,
-      "longestFlight": 0,
+      "ticks": 380,
+      "seconds": 3.166666666666658,
+      "catches": 4,
+      "crossed": false,
+      "flew": true,
+      "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9197602732511633,
-        "right": 0.9181932107665555
+        "left": 0.9617176237566792,
+        "right": 0.9601521150193916
       },
-      "overallReserve": 0.9539673938020437,
+      "overallReserve": 0.9480623506323674,
       "config": {
-        "y": 0.25,
-        "offset": 0.8,
-        "settle": 20,
-        "finishInside": true,
-        "near": 0.65,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-08",
-      "name": "Quiet Apex",
+      "name": "Under the Roof",
       "pass": true,
       "freshReplay": true,
-      "ticks": 643,
-      "seconds": 5.358333333333389,
-      "catches": 5,
-      "crossed": true,
+      "ticks": 835,
+      "seconds": 6.958333333333469,
+      "catches": 6,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
-      "undercling": false,
+      "undercling": true,
       "remainingReserve": {
-        "left": 0.905181732364675,
-        "right": 0.9400740493965538
+        "left": 0.9164641189796208,
+        "right": 0.9345511157423435
       },
-      "overallReserve": 0.9676321824244908,
+      "overallReserve": 0.863307498541081,
       "config": {
-        "y": 0.35,
-        "offset": 0.6,
-        "settle": 0,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-09",
-      "name": "First Flight",
+      "name": "Split Decision",
       "pass": true,
       "freshReplay": true,
-      "ticks": 598,
-      "seconds": 4.983333333333371,
-      "catches": 5,
+      "ticks": 439,
+      "seconds": 3.658333333333323,
+      "catches": 7,
       "crossed": false,
-      "flew": true,
-      "longestFlight": 0.15,
+      "flew": false,
+      "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9342160467634054,
-        "right": 0.959924918169629
+        "left": 0.9627566452496215,
+        "right": 0.9551048633941017
       },
-      "overallReserve": 0.9771603849749371,
+      "overallReserve": 0.9303611883988239,
       "config": {
-        "y": 0.35,
-        "offset": 0.8,
-        "settle": 0,
-        "releaseTick": 20,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-10",
-      "name": "Catch and Carry",
+      "name": "Ricochet",
       "pass": true,
       "freshReplay": true,
-      "ticks": 473,
-      "seconds": 3.9416666666666553,
-      "catches": 5,
-      "crossed": true,
+      "ticks": 531,
+      "seconds": 4.42500000000001,
+      "catches": 7,
+      "crossed": false,
       "flew": true,
-      "longestFlight": 0.15,
+      "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9460410386216263,
-        "right": 0.9630074088635413
+        "left": 0.9454278431818136,
+        "right": 0.9451457245533487
       },
-      "overallReserve": 0.9775982805225927,
+      "overallReserve": 0.9041957567631761,
       "config": {
-        "y": 0.35,
-        "offset": 0.6,
-        "settle": 0,
-        "releaseTick": 20,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-11",
-      "name": "Crosswind",
+      "name": "Vice Grip",
       "pass": true,
       "freshReplay": true,
-      "ticks": 1163,
-      "seconds": 9.691666666666757,
+      "ticks": 362,
+      "seconds": 3.0166666666666586,
       "catches": 6,
-      "crossed": true,
+      "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9210528733818637,
-        "right": 0.8511742983699453
+        "left": 0.9480236130903305,
+        "right": 0.948474829924072
       },
-      "overallReserve": 0.9431440027138183,
+      "overallReserve": 0.9356131649762636,
       "config": {
-        "y": 0.25,
-        "offset": 0.8,
-        "settle": 90,
         "controller": "motors"
       },
       "controller": "motors"
     },
     {
       "route": "motion-12",
-      "name": "Campus Circuit",
+      "name": "The King Line",
       "pass": true,
       "freshReplay": true,
-      "ticks": 1131,
-      "seconds": 9.425000000000106,
-      "catches": 10,
-      "crossed": true,
+      "ticks": 1226,
+      "seconds": 10.216666666666727,
+      "catches": 9,
+      "crossed": false,
       "flew": true,
       "longestFlight": 0.12499999999999999,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.8781066330288578,
-        "right": 0.9009290839193053
+        "left": 0.8108478136557203,
+        "right": 0.8736828944222166
       },
-      "overallReserve": 0.948340864981847,
+      "overallReserve": 0.8381586159800425,
       "config": {
-        "y": 0.35,
-        "offset": 0.6,
-        "settle": 0,
-        "releaseTick": 30,
         "controller": "motors"
       },
       "controller": "motors"

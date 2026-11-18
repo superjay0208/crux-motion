@@ -457,7 +457,7 @@ describe("ported hand-anchor locomotion", () => {
     expect(runAttempt(true)).toBe("move-0");
 
     // Undercling still requires palm-up ("down") orientation even when assisted.
-    const scoopRoute = routes[5];
+    const scoopRoute = routes[7];
     const scoopHold = scoopRoute.holds.find((h) => h.id === "move-1")!;
     const scoopSim = new Simulation(scoopRoute, "camera");
     scoopSim.assisted = true;
@@ -521,7 +521,7 @@ describe("ported hand-anchor locomotion", () => {
     s.rig.torso.setPosition(v(landing.p.x, landing.p.y - 0.65));
     s.rig.legs.setPosition(v(landing.p.x, landing.p.y - 1.4));
     input.left.target = sub(v(landing.p.x - 0.08, landing.p.y), s.rig.shoulder("left"));
-    input.left.grip = "jug";
+    input.left.grip = landing.kind;
     input.left.ready = true;
     s.setInput(input);
     for (let t = 0; t < 5 && !s.contacts.left; t++) s.step();
@@ -593,7 +593,7 @@ describe("ported hand-anchor locomotion", () => {
     expect(s.flew).toBe(false);
   });
   it("triggers push dynoSource, dynoLaunch, launch impact, and flew on a push-up simultaneous two-hand dyno", () => {
-    const s = new Simulation(routes[8], "camera");
+    const s = new Simulation(routes[1], "camera");
     s.fatigue = false;
     const input = structuredClone(s.input);
     for (const side of hands)
@@ -638,7 +638,7 @@ describe("ported hand-anchor locomotion", () => {
           v(landing.p.x + (side === "left" ? -0.08 : 0.08), landing.p.y),
           s.rig.shoulder(side),
         );
-        input[side].grip = t < 14 ? "release" : "jug";
+        input[side].grip = t < 14 ? "release" : landing.kind;
         input[side].ready = t >= 14;
       }
       s.setInput(input);
@@ -708,7 +708,7 @@ describe("ported hand-anchor locomotion", () => {
     for (let t = 0; t < 45; t++) {
       if (!s.contacts.left) {
         input.left.target = sub(target.p, s.rig.shoulder("left"));
-        input.left.grip = "jug";
+        input.left.grip = target.kind;
         input.left.ready = true;
         s.setInput(input);
       }

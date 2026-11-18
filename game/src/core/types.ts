@@ -1,9 +1,8 @@
 import type { V } from "./math";
 export type Hand = "left" | "right";
 export const hands: Hand[] = ["left", "right"];
-export type Grip = "jug" | "crimp" | "sloper" | "pinch" | "release" | "unknown";
-export const gripFits = (grip: Grip, hold: Hold["kind"]) =>
-  grip === hold || (hold === "jug" && grip === "crimp");
+export type Grip = "jug" | "crimp" | "pinch" | "release" | "unknown";
+export const gripFits = (grip: Grip, hold: Hold["kind"]) => grip === hold;
 export type Orientation = "up" | "down" | "side";
 export type ArmPose = { upper: number; elbow: number };
 export type ArmMotion = ArmPose & {

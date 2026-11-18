@@ -14,5 +14,10 @@ it("validates a real semantic recording and rejects malformed, nonfinite and reo
   const unordered = structuredClone(r);
   unordered.frames.push(unordered.frames[0]);
   expect(() => validateReplay(unordered)).toThrow();
+  const legacySloper = structuredClone(r) as unknown as {
+    frames: { input: { left: { grip: string } } }[];
+  };
+  legacySloper.frames[0].input.left.grip = "sloper";
+  expect(() => validateReplay(legacySloper)).toThrow("Invalid replay input");
   expect(() => validateReplay({ version: 1, duration: Infinity })).toThrow();
 });

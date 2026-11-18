@@ -102,6 +102,13 @@ export class Camera {
   currentFeatures: Partial<Record<Hand, Features>> = {};
   gripScores: Partial<Record<Hand, ReturnType<typeof cameraGrip>["scores"]>> =
     {};
+  classScores: Record<
+    Hand,
+    Record<"jug" | "crimp" | "pinch" | "release", number>
+  > = {
+    left: { jug: 0, crimp: 0, pinch: 0, release: 0 },
+    right: { jug: 0, crimp: 0, pinch: 0, release: 0 },
+  };
   delegate = "CPU";
   private positionFilters = {
     left: [new PositionSignal(), new PositionSignal()],
@@ -146,6 +153,9 @@ export class Camera {
         localStorage.getItem("crux-motion:calibration") || "null",
       );
       if (saved?.version === 1 && saved.reach > 0.05 && saved.reach < 2) {
+        // Strip legacy "sloper" prototype from old calibrations.
+        const hadSloper = !!saved.prototypes && "sloper" in saved.prototypes;
+        if (hadSloper) delete saved.prototypes.sloper;
         this.calibration = {
           ...this.calibration,
           ...saved,
@@ -158,7 +168,7 @@ export class Camera {
               ? saved.armMode
               : "anchors",
         };
-        if (saved.controlRevision !== 2)
+        if (saved.controlRevision !== 2 || hadSloper)
           localStorage.setItem(
             "crux-motion:calibration",
             JSON.stringify(this.calibration),
@@ -371,6 +381,7 @@ export class Camera {
       );
       const f = gripResult.features;
       this.gripScores[side] = gripResult.scores;
+      this.classScores[side] = gripResult.classes;
       this.currentFeatures[side] = f;
       const rawFound = anchorsMode
         ? gripResult.found
@@ -694,6 +705,10 @@ export class Camera {
     this.comfort.clear();
     for (const side of hands) this.arms[side].clear();
     this.grips = { left: "unknown", right: "unknown" };
+    this.classScores = {
+      left: { jug: 0, crimp: 0, pinch: 0, release: 0 },
+      right: { jug: 0, crimp: 0, pinch: 0, release: 0 },
+    };
     this.resetFilters();
   }
 }
