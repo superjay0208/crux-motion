@@ -48,6 +48,7 @@ export class Simulation {
   catchCount = 0;
   fatigue = true;
   motors = true;
+  assisted = false;
   time = 0;
   frames: Replay["frames"] = [];
   private lastInput = "";
@@ -127,6 +128,24 @@ export class Simulation {
     this.emit(slip ? "slip" : "release", this.rig.hand(side), cause, side);
     this.lastCause = cause;
   }
+  strain(side: Hand): number {
+    const c = this.contacts[side];
+    if (!c) return 0;
+    return clamp(
+      Math.max(
+        c.load / Math.max(0.4, c.joint.normal / 589),
+        c.drift / (this.rig instanceof AnchorRig ? 0.22 : 0.11),
+        c.wrong / 0.35,
+      ),
+      0,
+      1,
+    );
+  }
+  private gripMatches(grip: Inputs[Hand]["grip"], kind: Hold["kind"]) {
+    return this.assisted
+      ? grip !== "release" && grip !== "unknown"
+      : gripFits(grip, kind);
+  }
   private attach(side: Hand, hold: Hold, anchor: V, start = false) {
     if (this.contacts[side]) return;
     const other = this.contacts[side === "left" ? "right" : "left"];
@@ -137,8 +156,7 @@ export class Simulation {
       anchor,
       hold.direction,
     );
-    if (!(this.rig instanceof AnchorRig)) this.world.createJoint(joint);
-    this.contacts[side] = {
+    const contact: Contact = {
       hold,
       anchor: { ...anchor },
       joint,
@@ -147,6 +165,9 @@ export class Simulation {
       wrong: 0,
       load: 0,
     };
+    this.capacities(side, contact, this.dt);
+    if (!(this.rig instanceof AnchorRig)) this.world.createJoint(joint);
+    this.contacts[side] = contact;
     if (!start) {
       this.catchCount++;
       if (hold.checkpoint || hold.finish) this.visited.add(hold.id);
@@ -156,13 +177,15 @@ export class Simulation {
         this.flight >= 0.08 &&
         !this.route.start.includes(hold.id) &&
         !this.launchHolds.has(hold.id);
-      this.emit(
-        "catch",
-        anchor,
-        dyno ? "Dyno caught" : "Secure catch",
-        side,
-        clamp(len(this.rig.velocity()) / 2, 0.35, 2),
-      );
+      const speed = len(this.rig.velocity());
+      const message = dyno
+        ? speed < 2.2
+          ? "Clean dyno catch"
+          : "Dyno caught"
+        : speed < 0.55 && dist(anchor, hold.p) <= hold.radius * 0.65
+          ? "Clean catch"
+          : "Secure catch";
+      this.emit("catch", anchor, message, side, clamp(speed / 2, 0.35, 2));
       if (dyno) {
         this.flew = true;
         this.longestFlight = Math.max(this.longestFlight, this.flight);
@@ -203,9 +226,11 @@ export class Simulation {
     return (
       i.quality &&
       i.ready &&
-      gripFits(i.grip, hold.kind) &&
+      this.gripMatches(i.grip, hold.kind) &&
       (hold.direction.y >= -0.5 || i.orientation === "down") &&
-      (Math.abs(hold.direction.x) < 0.5 || i.orientation === "side") &&
+      (this.assisted ||
+        Math.abs(hold.direction.x) < 0.5 ||
+        i.orientation === "side") &&
       !(
         this.contacts[side === "left" ? "right" : "left"]?.hold.id ===
           hold.id && !hold.match
@@ -219,6 +244,7 @@ export class Simulation {
       !this.input[side].quality
     )
       return;
+    const other = this.contacts[side === "left" ? "right" : "left"];
     // Overlapping visible patches resolve toward the player's requested point.
     // Actual hand/patch intersection is still mandatory below.
     const requested = this.rig.aim(side, this.input);
@@ -247,9 +273,27 @@ export class Simulation {
             : radius + 0.1)
       )
         continue;
-      if (dist(center, point) > radius + 0.025 || dist(to, point) > 0.08)
+      if (
+        other &&
+        other.hold.p.y > hold.p.y + 0.18 &&
+        (this.route.start.includes(hold.id) || this.visited.has(hold.id)) &&
+        requested.y > center.y + radius * 0.55 &&
+        dist(requested, center) > radius * 0.85
+      )
         continue;
-      if (!this.eligible(side, hold)) {
+      const eligible = this.eligible(side, hold);
+      const assist =
+        this.assisted &&
+        eligible &&
+        dist(this.rig.shoulder(side), center) <= 0.76 + radius
+          ? 0.035
+          : 0;
+      if (
+        dist(center, point) > radius + 0.025 + assist ||
+        dist(to, point) > 0.08 + assist
+      )
+        continue;
+      if (!eligible) {
         if (this.input[side].ready)
           this.lastCause =
             hold.direction.y < -0.5
@@ -323,7 +367,7 @@ export class Simulation {
           this.input[side].ready &&
           this.input[side].grip !== "unknown"
         )
-          c.wrong = !gripFits(this.input[side].grip, c.hold.kind)
+          c.wrong = !this.gripMatches(this.input[side].grip, c.hold.kind)
             ? c.wrong + this.dt
             : 0;
         else c.wrong = Math.max(0, c.wrong - this.dt);
@@ -362,9 +406,25 @@ export class Simulation {
       this.world.step(this.dt / 2, 12, 4);
       if (anchored) anchored.sync(this.input, anchors());
       work += this.rig.measureWork(this.dt / 2);
+      let acquired = false;
       for (const side of hands)
-        if (!this.contacts[side])
+        if (!this.contacts[side]) {
           this.acquire(side, prev[side], this.rig.hand(side));
+          if (this.contacts[side]) acquired = true;
+        }
+      if (anchored && substep === 0 && acquired) {
+        const capacity = hands.reduce(
+          (sum, side) => sum + (this.contacts[side]?.joint.normal ?? 0),
+          0,
+        );
+        anchored.updateSupport(
+          this.input,
+          anchors(),
+          capacity,
+          this.ground,
+          true,
+        );
+      }
     }
     anchored?.afterStep(this.dt);
     const supportCount = hands.filter((side) => this.contacts[side]).length;

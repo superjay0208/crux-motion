@@ -1,7 +1,7 @@
-import { MouseJoint, Vec2, type World } from "planck";
+import { MouseJoint, type World } from "planck";
 import { Rig } from "./Rig";
 import { hands, type Hand, type Inputs, type ArmPose } from "./types";
-import { add, sub, mul, v, ik, dist, len, type V } from "./math";
+import { add, sub, mul, v, ik, dist, len, clamp, type V } from "./math";
 import {
   inverseHandCorrection,
   ReleaseVelocity,
@@ -13,6 +13,8 @@ export class AnchorRig extends Rig {
   private actuator: MouseJoint | null = null;
   private history = new ReleaseVelocity();
   private before = v();
+  private sway = 0;
+  private lastCorrection = v();
   constructor(world: World) {
     super(world);
     // The hip remains passive. Arm shapes are retargeted graphics and have no
@@ -20,6 +22,7 @@ export class AnchorRig extends Rig {
     for (const j of this.joints.slice(1)) world.destroyJoint(j);
     this.joints.splice(1);
     this.torso.setFixedRotation(true);
+    this.legs.setAngularDamping(1.4);
     this.torso.getFixtureList()!.setDensity(41.4 / (4 * 0.19 * 0.38));
     this.torso.resetMassData();
     for (const side of hands)
@@ -90,15 +93,19 @@ export class AnchorRig extends Rig {
     anchors: Partial<Record<Hand, V>>,
     maxForce: number,
     ground: import("planck").Body,
+    preserveBefore = false,
   ) {
-    this.before = { ...this.torso.getPosition() };
+    if (!preserveBefore || !this.actuator)
+      this.before = { ...this.torso.getPosition() };
     const supports = hands
       .filter((side) => anchors[side])
       .map((side) => ({
         anchor: anchors[side]!,
         requested: this.aim(side, input),
+        shoulder: this.shoulder(side),
       }));
     if (!supports.length) {
+      this.lastCorrection = v();
       if (this.actuator) {
         this.world.destroyJoint(this.actuator);
         this.actuator = null;
@@ -120,6 +127,7 @@ export class AnchorRig extends Rig {
     }
     this.actuator.setMaxForce(maxForce);
     const correction = inverseHandCorrection(supports);
+    this.lastCorrection = correction;
     // A soft joint sags under gravity. Without this static spring deflection,
     // every rebase treats the sagged pose as a new target and sinks a little
     // farther. Compensate the spring target, keeping the real support force
@@ -133,8 +141,19 @@ export class AnchorRig extends Rig {
   afterStep(dt: number) {
     if (this.actuator)
       this.history.addDistance(dt, sub(this.torso.getPosition(), this.before));
+    const vx = this.torso.getLinearVelocity().x,
+      lateral = this.actuator ? this.lastCorrection.x : 0;
+    const desired =
+      Math.abs(vx) > 0.015 || Math.abs(lateral) > 0.008
+        ? clamp(-0.085 * vx - 0.35 * lateral, -0.2, 0.2)
+        : 0;
+    const alpha = 1 - Math.exp(-dt * 12);
+    this.sway = clamp(this.sway + (desired - this.sway) * alpha, -0.2, 0.2);
+    if (desired === 0 && Math.abs(this.sway) < 1e-4) this.sway = 0;
+    if (this.torso.getAngle() !== this.sway) this.torso.setAngle(this.sway);
   }
   releaseLast(intentional: boolean) {
+    this.lastCorrection = v();
     if (!this.actuator) return;
     this.world.destroyJoint(this.actuator);
     this.actuator = null;
@@ -147,6 +166,9 @@ export class AnchorRig extends Rig {
   }
   rebase() {
     this.history.clear();
+    this.sway = 0;
+    this.lastCorrection = v();
+    if (this.torso.getAngle() !== 0) this.torso.setAngle(0);
   }
   get supportForce() {
     return this.actuator?.getReactionForce(240) ?? v();

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T09:24:56.448Z",
+  "generatedAt": "2026-11-18T00:23:29.112Z",
   "kind": "synthetic semantic controls through real physics; not real-camera validation",
   "results": [
     {
@@ -7,18 +7,18 @@
       "name": "Jug Ladder",
       "pass": true,
       "freshReplay": true,
-      "ticks": 367,
-      "seconds": 3.058333333333325,
+      "ticks": 358,
+      "seconds": 2.9833333333333254,
       "catches": 5,
       "crossed": false,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9646079460534471,
-        "right": 0.9634986900066128
+        "left": 0.9652403583554358,
+        "right": 0.9646907067609275
       },
-      "overallReserve": 0.9800287819005461,
+      "overallReserve": 0.9804157461131746,
       "config": {
         "y": 0.35,
         "offset": 0,
@@ -32,18 +32,18 @@
       "name": "Cross Current",
       "pass": true,
       "freshReplay": true,
-      "ticks": 660,
-      "seconds": 5.500000000000063,
+      "ticks": 628,
+      "seconds": 5.233333333333383,
       "catches": 5,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9336615004898106,
-        "right": 0.9426672391943492
+        "left": 0.9440881144423798,
+        "right": 0.9393955999366863
       },
-      "overallReserve": 0.9653517900820099,
+      "overallReserve": 0.9648120290200676,
       "config": {
         "y": 0.35,
         "offset": 0.8,
@@ -57,18 +57,18 @@
       "name": "Edge Etiquette",
       "pass": true,
       "freshReplay": true,
-      "ticks": 884,
-      "seconds": 7.366666666666823,
+      "ticks": 878,
+      "seconds": 7.31666666666682,
       "catches": 5,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.902785332222466,
-        "right": 0.8948805065623979
+        "left": 0.9031416756611855,
+        "right": 0.8986782440398614
       },
-      "overallReserve": 0.9625808349377994,
+      "overallReserve": 0.9627235880618271,
       "config": {
         "y": 0.35,
         "offset": 0.6,
@@ -82,18 +82,18 @@
       "name": "Pendulum Bay",
       "pass": true,
       "freshReplay": true,
-      "ticks": 744,
-      "seconds": 6.200000000000098,
+      "ticks": 721,
+      "seconds": 6.008333333333422,
       "catches": 6,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9578542657014879,
-        "right": 0.9068031695038565
+        "left": 0.9597455755381546,
+        "right": 0.9082962628909781
       },
-      "overallReserve": 0.9635299872026145,
+      "overallReserve": 0.9637948501144539,
       "config": {
         "y": 0.35,
         "offset": 0.8,
@@ -107,18 +107,18 @@
       "name": "Soft Landing",
       "pass": true,
       "freshReplay": true,
-      "ticks": 563,
-      "seconds": 4.6916666666666895,
+      "ticks": 519,
+      "seconds": 4.325000000000005,
       "catches": 6,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9372795790368681,
-        "right": 0.9612289794326954
+        "left": 0.9480001181176081,
+        "right": 0.959320204946804
       },
-      "overallReserve": 0.9677955381910794,
+      "overallReserve": 0.9706148768636956,
       "config": {
         "y": 0.25,
         "offset": 0.8,
@@ -132,18 +132,18 @@
       "name": "Under the Lip",
       "pass": true,
       "freshReplay": true,
-      "ticks": 454,
-      "seconds": 3.7833333333333226,
+      "ticks": 443,
+      "seconds": 3.691666666666656,
       "catches": 5,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": true,
       "remainingReserve": {
-        "left": 0.9567179080611697,
-        "right": 0.9602452548054656
+        "left": 0.9576070590355261,
+        "right": 0.9627779569806929
       },
-      "overallReserve": 0.9770448415571976,
+      "overallReserve": 0.9777834570733038,
       "config": {
         "y": 0.35,
         "offset": 0.6,
@@ -157,18 +157,18 @@
       "name": "Pinch Point",
       "pass": true,
       "freshReplay": true,
-      "ticks": 981,
-      "seconds": 8.175000000000177,
+      "ticks": 964,
+      "seconds": 8.033333333333518,
       "catches": 6,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9193086427315332,
-        "right": 0.9169230289933352
+        "left": 0.9203620279145297,
+        "right": 0.918025626391196
       },
-      "overallReserve": 0.9533195156631388,
+      "overallReserve": 0.9522088119816043,
       "config": {
         "y": 0.25,
         "offset": 0.8,
@@ -184,18 +184,18 @@
       "name": "Quiet Apex",
       "pass": true,
       "freshReplay": true,
-      "ticks": 648,
-      "seconds": 5.400000000000058,
+      "ticks": 643,
+      "seconds": 5.358333333333389,
       "catches": 5,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9035448922485095,
-        "right": 0.9392449806615213
+        "left": 0.9037943757549728,
+        "right": 0.939997764230289
       },
-      "overallReserve": 0.9669830110874924,
+      "overallReserve": 0.967204449045851,
       "config": {
         "y": 0.35,
         "offset": 0.6,
@@ -209,18 +209,18 @@
       "name": "First Flight",
       "pass": true,
       "freshReplay": true,
-      "ticks": 559,
-      "seconds": 4.6583333333333545,
+      "ticks": 546,
+      "seconds": 4.550000000000016,
       "catches": 4,
       "crossed": false,
       "flew": true,
       "longestFlight": 0.15,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9373573053854005,
-        "right": 0.9618824842468416
+        "left": 0.9382700461975738,
+        "right": 0.9625619715073037
       },
-      "overallReserve": 0.9780704901464706,
+      "overallReserve": 0.9779263239321028,
       "config": {
         "y": 0.35,
         "offset": 0.8,
@@ -235,18 +235,18 @@
       "name": "Catch and Carry",
       "pass": true,
       "freshReplay": true,
-      "ticks": 680,
-      "seconds": 5.666666666666738,
+      "ticks": 672,
+      "seconds": 5.600000000000068,
       "catches": 5,
       "crossed": true,
       "flew": true,
       "longestFlight": 0.15,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9201220877354381,
-        "right": 0.955098311983679
+        "left": 0.9214676295978069,
+        "right": 0.9560707789219606
       },
-      "overallReserve": 0.9692087356015786,
+      "overallReserve": 0.9697814414947268,
       "config": {
         "y": 0.35,
         "offset": 0.6,
@@ -261,18 +261,18 @@
       "name": "Crosswind",
       "pass": true,
       "freshReplay": true,
-      "ticks": 1179,
-      "seconds": 9.825000000000083,
+      "ticks": 1163,
+      "seconds": 9.691666666666757,
       "catches": 6,
       "crossed": true,
       "flew": false,
       "longestFlight": 0,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.9194316219178434,
-        "right": 0.845911484979735
+        "left": 0.9200919200358135,
+        "right": 0.8488086127194726
       },
-      "overallReserve": 0.9433130212928688,
+      "overallReserve": 0.9429808362421549,
       "config": {
         "y": 0.25,
         "offset": 0.8,
@@ -286,18 +286,18 @@
       "name": "Campus Circuit",
       "pass": true,
       "freshReplay": true,
-      "ticks": 1314,
-      "seconds": 10.950000000000019,
-      "catches": 9,
+      "ticks": 1301,
+      "seconds": 10.841666666666692,
+      "catches": 8,
       "crossed": true,
       "flew": true,
-      "longestFlight": 0.275,
+      "longestFlight": 0.26666666666666666,
       "undercling": false,
       "remainingReserve": {
-        "left": 0.8328099436745159,
-        "right": 0.913314751294825
+        "left": 0.8438551470280814,
+        "right": 0.9162820941709733
       },
-      "overallReserve": 0.9439605212585339,
+      "overallReserve": 0.9454645440099583,
       "config": {
         "y": 0.35,
         "offset": 0.6,

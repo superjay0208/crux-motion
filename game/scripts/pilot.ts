@@ -97,10 +97,11 @@ export function pilot(index: number, opts: PilotOptions = {}) {
             opts.controller === "anchors" ? -0.68 : -0.48,
             opts.controller === "anchors" ? 0.68 : 0.48,
           );
-        const relative = sub(target.p, sim.rig.shoulder(side));
+        const aimPoint = target.match ? addPatch(target, side) : target.p;
+        const relative = sub(aimPoint, sim.rig.shoulder(side));
         input[side].target = relative;
         const near =
-          dist(sim.rig.hand(side), target.p) <
+          dist(sim.rig.hand(side), aimPoint) <
           target.radius * (opts.near ?? 0.85);
         input[side].grip = t > 14 && near ? target.kind : "release";
         input[side].ready = t > 14 && near;
