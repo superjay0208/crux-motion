@@ -134,9 +134,9 @@ if (!process.argv.includes("--publish")) {
 } else {
   verifyPrivacyGate();
   const head = run(["rev-parse", "--verify", "HEAD"]);
-  if (run(["status", "--porcelain", "--untracked-files=no"])) {
+  if (run(["diff", "--cached", "--name-only"])) {
     throw new Error(
-      "Tracked files have uncommitted changes; commit the reviewed milestone before publishing.",
+      "Staged files have uncommitted changes; commit the reviewed milestone before publishing.",
     );
   }
   let repository = await api(`/repos/${user}/${repo}`, "GET", undefined, true);
