@@ -1,7 +1,7 @@
 {
-  "url": "http://127.0.0.1:58160/crux-motion/",
+  "url": "http://127.0.0.1:62299/crux-motion/",
   "mode": "subpath",
-  "recordedAt": "2026-11-18T01:54:11.844Z",
+  "recordedAt": "2026-11-18T03:50:44.943Z",
   "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "runtimeHygiene": {
     "pageErrors": 0,
@@ -10,12 +10,12 @@
     "externalRequests": 0
   },
   "initialLoad": {
-    "domContentLoadedMs": 78.9,
-    "loadEventMs": 151.8,
-    "fcpMs": 320,
+    "domContentLoadedMs": 79.2,
+    "loadEventMs": 87,
+    "fcpMs": null,
     "requestsCount": 6,
-    "transferBytes": 497296,
-    "responseBodyBytes": 495496,
+    "transferBytes": 516227,
+    "responseBodyBytes": 514427,
     "heavyCameraAssetsOnLanding": 0,
     "displayFontLoaded": true,
     "subpathSolutionCheck": {
@@ -25,35 +25,35 @@
       "controller": "anchors",
       "frames": 82
     },
-    "wallDemoTickAttr": "15",
+    "wallDemoTickAttr": "22",
     "wallCaption": "01 / JUG LADDERReach · Catch · Match"
   },
   "performance": {
     "introShowcase180Frames": {
       "frames": 180,
-      "elapsedMs": 1175,
-      "simTicksAdvanced": 143,
-      "fps": 153.19,
-      "frameDeltaP50Ms": 6.1,
-      "frameDeltaP95Ms": 6.2,
-      "frameDeltaMaxMs": 18.2,
-      "frameWorkMeanMs": 0.73,
-      "frameWorkP50Ms": 0.7,
-      "frameWorkP95Ms": 1,
+      "elapsedMs": 3048,
+      "simTicksAdvanced": 223,
+      "fps": 59.06,
+      "frameDeltaP50Ms": 16.7,
+      "frameDeltaP95Ms": 16.8,
+      "frameDeltaMaxMs": 50,
+      "frameWorkMeanMs": 0.83,
+      "frameWorkP50Ms": 0.8,
+      "frameWorkP95Ms": 1.3,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     },
     "practiceClimb180Frames": {
       "frames": 180,
-      "elapsedMs": 1095,
-      "simTicksAdvanced": 131,
-      "fps": 164.38,
-      "frameDeltaP50Ms": 6.1,
-      "frameDeltaP95Ms": 6.1,
-      "frameDeltaMaxMs": 6.2,
-      "frameWorkMeanMs": 0.96,
-      "frameWorkP50Ms": 1,
-      "frameWorkP95Ms": 1.2,
+      "elapsedMs": 3016.4,
+      "simTicksAdvanced": 362,
+      "fps": 59.67,
+      "frameDeltaP50Ms": 16.7,
+      "frameDeltaP95Ms": 16.8,
+      "frameDeltaMaxMs": 17.1,
+      "frameWorkMeanMs": 1.14,
+      "frameWorkP50Ms": 1.1,
+      "frameWorkP95Ms": 1.6,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     }
@@ -70,39 +70,39 @@
     }
   },
   "diagnostics": {
-    "url": "http://127.0.0.1:58160/crux-motion/diagnostics.html",
+    "url": "http://127.0.0.1:62299/crux-motion/diagnostics.html",
     "reports": [
       {
         "provider": "paired",
         "frames": 5,
-        "initializationAndRunMs": 4856.10000000149,
+        "initializationAndRunMs": 4839,
         "inferenceMs": [
-          4485.400000002235,
-          19.899999998509884,
-          18,
-          17.600000001490116,
-          17.599999997764826
+          4478,
+          16.300000000745058,
+          15.700000002980232,
+          15.800000000745058,
+          15.5
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 18.27
+        "steadyStateMeanMs": 15.83
       },
       {
         "provider": "holistic",
         "frames": 5,
-        "initializationAndRunMs": 2424.099999997765,
+        "initializationAndRunMs": 2401.5,
         "inferenceMs": [
-          2147.800000000745,
-          10.899999998509884,
-          10.399999998509884,
+          2144.300000000745,
+          10.5,
+          9.300000000745058,
           9.700000002980232,
-          10
+          8.900000002235174
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 10.25
+        "steadyStateMeanMs": 9.6
       }
     ]
   }

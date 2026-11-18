@@ -31,7 +31,7 @@ export function pilot(index: number, opts: PilotOptions = {}) {
     const c = sim.contacts[side];
     if (c) {
       input[side] = {
-        target: v(side === "left" ? -0.1 : 0.1, y),
+        target: v((side === "left" ? -0.1 : 0.1) * (c.hold.match ? -1 : 1), y),
         grip: c.hold.kind,
         ready: true,
         orientation:
@@ -88,7 +88,10 @@ export function pilot(index: number, opts: PilotOptions = {}) {
       let caught = false;
       for (let t = 0; t < 600 && sim.state === "playing"; t++) {
         const other = side === "left" ? "right" : "left";
-        support(other, opts.y ?? 0.34);
+        support(
+          other,
+          index === 9 && opts.controller !== "anchors" ? 0.24 : (opts.y ?? 0.34),
+        );
         const anchor = sim.contacts[other]?.anchor;
         if (anchor)
           input[other].target.x = clamp(
@@ -134,10 +137,16 @@ export function pilot(index: number, opts: PilotOptions = {}) {
         .sort((a, b) => b.p.y - a.p.y)[0];
       if (launch) {
         for (const side of hands)
-          if (sim.contacts[side]?.hold.id !== launch.id) move(side, launch);
+          if (sim.contacts[side]?.hold.id !== launch.id) {
+            move(side, launch);
+            advance(30, () => {
+              support("left", 0.4);
+              support("right", 0.4);
+            });
+          }
         advance(150, () => {
-          support("left", 0.69);
-          support("right", 0.69);
+          support("left", 0.62);
+          support("right", 0.62);
         });
         advance(opts.releaseTick ?? 20, () => {
           support("left", 0.18);

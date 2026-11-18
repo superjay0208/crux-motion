@@ -42,7 +42,7 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `<header class="masthead"><a class="wordmark" href="#" aria-label="Crux Motion home"><span class="mark">⌁</span> CRUX<span class="wordmark-motion">MOTION</span></a><div class="edition"><span class="live-dot"></span> THE CAMPUS EXPERIMENT <span class="edition-line">/</span> VOL. 01</div><button class="text-button" id="about-button">How it works <span>↗</span></button></header>
 <main class="shell"><section class="intro" id="intro"><div class="eyebrow"><span class="short-rule"></span> A DIFFERENT WAY UP</div><h1>Your hands.<br>Your next <em>move.</em></h1><p class="intro-copy">Reach for it. Feel the swing. Stick the catch.<br>A climbing game that moves with you.</p><div class="launch-actions"><button class="primary" id="camera-start">${icon("camera")} Use your camera <span>↗</span></button><button class="secondary" id="practice-start">Explore with practice controls <span>→</span></button></div><p class="privacy-note"><span>◈</span> On-device tracking. Your camera stays yours.</p><div class="feature-strip"><div><strong>02</strong><span>HANDS. ONE RHYTHM.</span></div><div><strong>12</strong><span>WAYS TO THE TOP.</span></div><div><strong>∞</strong><span>ONE MORE TRY.</span></div></div><div class="intro-bottom"><span>NO FOOTWORK. ALL FEEL.</span><span>↓ FIND YOUR FLOW</span></div></section>
 <section class="wall-wrap"><div class="wall-top"><span id="wall-label">THE MOVEMENT LAB</span><span id="wall-top-right">LIVE PHYSICS / 120 HZ</span></div><canvas id="wall" aria-label="Physical climbing wall and climber"></canvas><div class="wall-caption" id="wall-caption"><span class="tiny-tag">01 / JUG LADDER</span><span>Every move begins with a little trust.</span></div><div class="game-overlay hidden" id="game-overlay"></div><div class="wall-legend"><span><i style="background:#8ae2c7"></i> JUG</span><span><i style="background:#efb373"></i> CRIMP</span><span><i style="background:#a9baf2"></i> SLOPER</span><span><i style="background:#ef9f96"></i> PINCH</span><span>↥ UNDERCLING</span></div></section>
-<aside class="play-panel hidden" id="play-panel"><div class="eyebrow" id="session-mode">PRACTICE SESSION</div><h2 id="route-name">Jug Ladder</h2><p class="panel-subtitle" id="route-subtitle"></p><div class="route-progress"><span id="progress-label">0 / 3 holds</span><span id="clock">00:00</span><div class="progress-track"><i id="progress-fill"></i></div></div><div class="coach-card"><span class="eyebrow">THE NEXT MOVE</span><p id="hint"></p></div><div class="hand-cards"><button class="hand-card selected" data-hand="left"><span>LEFT HAND <b>L</b></span><strong id="left-grip">${gripNames.jug}</strong><div class="meter"><i id="left-reserve"></i></div><small id="left-contact">Holding</small></button><button class="hand-card" data-hand="right"><span>RIGHT HAND <b>R</b></span><strong id="right-grip">${gripNames.jug}</strong><div class="meter"><i id="right-reserve"></i></div><small id="right-contact">Holding</small></button></div><div class="grip-selector" id="grip-selector"><label>GRIP SHAPE <span>1–4</span></label>${(["jug", "crimp", "sloper", "pinch"] as Grip[]).map((g, i) => `<button data-grip="${g}" class="grip-option ${i === 0 ? "active" : ""}" title="${i + 1}: ${gripNames[g]}"><span class="grip-symbol">${["∩", "⌐", "◡", "⊂"][i]}</span>${gripNames[g]}</button>`).join("")}</div><button class="release-button" id="release-hand">Release selected hand <span>Q / E</span></button><div class="camera-preview hidden" id="camera-preview"></div><p class="camera-status" id="camera-status"></p><div class="session-tools"><button id="calibrate-button">Calibrate</button><button id="lab-button">Grip lab ↗</button><button id="settings-button" aria-label="Open settings">⚙</button></div><div class="controls-note" id="controls-note">Drag a wrist to reach. Space pulls; Shift extends.<br>Q / E releases left / right. Tab changes hand.</div><div class="panel-bottom"><button class="icon-button" id="retry" aria-label="Retry route">↻</button><button class="icon-button" id="pause" aria-label="Pause or resume">Ⅱ</button><button class="secondary compact" id="routes-button">All routes <span>↗</span></button></div></aside></main>
+<aside class="play-panel hidden" id="play-panel"><div class="eyebrow" id="session-mode">PRACTICE SESSION</div><h2 id="route-name">Jug Ladder</h2><p class="panel-subtitle" id="route-subtitle"></p><div class="route-progress"><span id="progress-label">0 / 3 holds</span><span id="clock">00:00</span><div class="progress-track"><i id="progress-fill"></i></div></div><div class="coach-card"><span class="eyebrow">THE NEXT MOVE</span><p id="hint"></p></div><div class="hand-cards"><button class="hand-card selected" data-hand="left"><span>LEFT HAND <b>L</b></span><strong id="left-grip">${gripNames.jug}</strong><div class="meter"><i id="left-reserve"></i></div><small id="left-contact">Holding</small></button><button class="hand-card" data-hand="right"><span>RIGHT HAND <b>R</b></span><strong id="right-grip">${gripNames.jug}</strong><div class="meter"><i id="right-reserve"></i></div><small id="right-contact">Holding</small></button></div><div class="grip-selector" id="grip-selector"><label>GRIP SHAPE <span>1–4</span></label>${(["jug", "crimp", "sloper", "pinch"] as Grip[]).map((g, i) => `<button data-grip="${g}" class="grip-option ${i === 0 ? "active" : ""}" title="${i + 1}: ${gripNames[g]}"><span class="grip-symbol">${["∩", "⌐", "◡", "⊂"][i]}</span>${gripNames[g]}</button>`).join("")}</div><button class="release-button" id="release-hand">Release selected hand <span>Q / E</span></button><button class="dual-release-button" id="release-both">Release both hands (Dyno) <span>· V</span></button><div class="camera-preview hidden" id="camera-preview"></div><p class="camera-status" id="camera-status"></p><div class="session-tools"><button id="calibrate-button">Calibrate</button><button id="lab-button">Grip lab ↗</button><button id="settings-button" aria-label="Open settings">⚙</button></div><div class="controls-note" id="controls-note">Drag a wrist to reach. Space pulls; Shift extends.<br>Q / E releases left / right. Tab changes hand.</div><div class="panel-bottom"><button class="icon-button" id="retry" aria-label="Retry route">↻</button><button class="icon-button" id="pause" aria-label="Pause or resume">Ⅱ</button><button class="secondary compact" id="routes-button">All routes <span>↗</span></button></div></aside></main>
 <footer><span>BUILT FOR THE MOMENT IT CLICKS.</span><span class="footer-right">UPPER BODY. HIGHER POSSIBILITIES. <b>↗</b></span></footer>
 <dialog id="modal"><button class="modal-close" id="modal-close" aria-label="Close dialog">×</button><div id="modal-content"></div></dialog>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
@@ -94,6 +94,7 @@ let index = deepLinkRoute ?? 0,
   inputs = initialInputs(),
   dragging = false,
   pointer = v(),
+  pointerActive = false,
   pull = false,
   extend = false,
   swayLeft = false,
@@ -104,7 +105,9 @@ let index = deepLinkRoute ?? 0,
   lab = false;
 let last = performance.now(),
   accumulator = 0,
+  hitStopRemaining = 0,
   lastHud = 0,
+  lastDynoReady = false,
   lastState = "",
   lastSeen = 0,
   lastCheckpoint = 0,
@@ -320,6 +323,7 @@ function setIntroStaticPose(routeIdx: number) {
   renderer.ghost = null;
   renderer.reset();
   accumulator = 0;
+  hitStopRemaining = 0;
   canvas.dataset.demoTick = "0";
   updateIntroCaption(routeIdx);
 }
@@ -363,6 +367,7 @@ async function loadIntroShowcase(pos: number) {
     renderer.ghost = null;
     renderer.reset();
     accumulator = 0;
+    hitStopRemaining = 0;
     canvas.dataset.demoTick = "0";
     updateIntroCaption(routeIdx);
   } catch {
@@ -383,10 +388,11 @@ function enter(next: "camera" | "practice") {
   el("camera-preview").classList.toggle("hidden", next !== "camera");
   el("grip-selector").classList.toggle("hidden", next === "camera");
   el("release-hand").classList.toggle("hidden", next === "camera");
+  el("release-both").classList.toggle("hidden", next === "camera");
   el("controls-note").textContent =
     next === "camera"
-      ? "Start with relaxed Jug fists near your chest. Spread fingers to release; close to catch a Jug. Lower the supporting fist a little to pull. Recenter hands · C resets your comfortable pose."
-      : "Drag a wrist to reach. W / Space pulls; S / Shift extends; A / D swings. Q / E release. X changes hand. O turns the palm.";
+      ? "Start with relaxed Jug fists near your chest. Swing or pull up, then spread BOTH hands together to dyno. Recenter · C resets pose."
+      : "Drag wrist to reach. W / Space pulls; S / Shift extends; A / D swings. V dynos (both); G catches; Q / E release L / R; O turns palm.";
   audio.unlock();
   loadRoute(index);
 }
@@ -406,13 +412,14 @@ function loadRoute(i: number) {
   inputs = initialInputs();
   selected = "left";
   grip = "jug";
-  pull = extend = swayLeft = swayRight = dragging = false;
+  pull = extend = swayLeft = swayRight = dragging = pointerActive = false;
   review = false;
   isReview = false;
   checkpointPractice = false;
   replay = null;
   lastSeen = lastCheckpoint = seenVisited = 0;
   lastState = "";
+  lastDynoReady = false;
   ghostRun = [];
   lastGhostTick = -8;
   bestGhost = loadGhost(routes[i].id);
@@ -421,9 +428,11 @@ function loadRoute(i: number) {
   audio.reset();
   inputProtection.reset();
   accumulator = 0;
+  hitStopRemaining = 0;
   lab = false;
   updateLabels();
   updateSelection();
+  hud();
 }
 function updateLabels() {
   el("route-name").textContent = sim.route.name;
@@ -445,7 +454,8 @@ function updateLabels() {
     !lab && !review && (mode === "camera" || mode === "practice") && save.assisted
       ? `${baseSession} · ASSISTED`
       : baseSession;
-  el("game-overlay").classList.add("hidden");
+  lastState = "";
+  overlay();
 }
 el("practice-start").onclick = () => enter("practice");
 async function useCamera() {
@@ -1150,31 +1160,67 @@ function release(side: Hand) {
   inputs[side].grip = "release";
   inputs[side].ready = false;
 }
+function armBothHands() {
+  inputs.left.grip = grip;
+  inputs.left.ready = true;
+  inputs.right.grip = grip;
+  inputs.right.ready = true;
+}
+function releaseBoth() {
+  if (mode !== "practice" || review) return;
+  dragging = false;
+  release("left");
+  release("right");
+  if (sim.state === "ready") sim.start();
+  audio.unlock();
+}
 el("release-hand").onclick = () => release(selected);
+el("release-both").onclick = releaseBoth;
 canvas.addEventListener("pointerdown", (e) => {
   if (mode !== "practice" || review || el<HTMLDialogElement>("modal").open)
     return;
   const r = canvas.getBoundingClientRect(),
     p = v(e.clientX - r.left, e.clientY - r.top),
     world = renderer.toWorld(p);
+  pointer = world;
+  pointerActive = true;
+  if (
+    sim.state === "playing" &&
+    !sim.contacts.left &&
+    !sim.contacts.right
+  ) {
+    dragging = false;
+    armBothHands();
+    return;
+  }
   selected =
     dist(world, sim.rig.hand("left")) < dist(world, sim.rig.hand("right"))
       ? "left"
       : "right";
   dragging = true;
-  pointer = world;
   release(selected);
   canvas.setPointerCapture(e.pointerId);
   updateSelection();
   if (sim.state === "ready") sim.start();
 });
 canvas.addEventListener("pointermove", (e) => {
-  if (dragging) {
-    const r = canvas.getBoundingClientRect();
-    pointer = renderer.toWorld(v(e.clientX - r.left, e.clientY - r.top));
-  }
+  if (mode !== "practice" || review) return;
+  const r = canvas.getBoundingClientRect();
+  pointer = renderer.toWorld(v(e.clientX - r.left, e.clientY - r.top));
+  pointerActive = true;
 });
 canvas.addEventListener("pointerup", () => {
+  if (
+    mode === "practice" &&
+    !review &&
+    sim.state === "playing" &&
+    !sim.contacts.left &&
+    !sim.contacts.right
+  ) {
+    dragging = false;
+    armBothHands();
+    return;
+  }
   if (dragging) {
     dragging = false;
     inputs[selected].grip = grip;
@@ -1201,6 +1247,16 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyC" && mode === "camera" && !e.repeat) {
     e.preventDefault();
     recenterClimb();
+    return;
+  }
+  if (mode === "practice" && !review && e.code === "KeyV" && !e.repeat) {
+    e.preventDefault();
+    releaseBoth();
+    return;
+  }
+  if (mode === "practice" && !review && e.code === "KeyG" && !e.repeat) {
+    e.preventDefault();
+    armBothHands();
     return;
   }
   if ((e.target as HTMLElement)?.closest("button,input,select,a,dialog"))
@@ -1313,7 +1369,7 @@ const orientationButton = document.createElement("button");
 orientationButton.id = "orientation";
 orientationButton.className = "release-button";
 orientationButton.textContent = "Palm: upright · O to turn";
-el("release-hand").after(orientationButton);
+el("release-both").after(orientationButton);
 function turnPalm() {
   const list = ["up", "down", "side"] as const;
   inputs[selected].orientation =
@@ -1355,6 +1411,7 @@ function playReplay(recorded: Replay) {
   renderer.reset();
   audio.reset();
   accumulator = 0;
+  hitStopRemaining = 0;
   updateLabels();
 }
 function settings() {
@@ -1500,7 +1557,7 @@ el("camera-status").before(recenterButton);
 const motionFeedback = document.createElement("div");
 motionFeedback.className = "motion-feedback hidden";
 motionFeedback.innerHTML =
-  '<span id="motion-label">HAND ANCHORS</span><strong id="motion-speed">0.0 m/s</strong><div class="meter"><i id="motion-energy"></i></div><p id="motion-cue">Sweep your arms to build a swing.</p>';
+  '<span id="motion-label">HAND ANCHORS</span><i class="dyno-source-tag" id="dyno-source-tag"></i><strong id="motion-speed">0.0 m/s</strong><div class="meter"><i id="motion-energy"></i></div><p id="motion-cue">Sweep your arms to build a swing.</p>';
 el("camera-status").before(motionFeedback);
 let shownVelocity = { x: 0, y: 0 };
 let motionTick = -1;
@@ -1855,6 +1912,7 @@ function startReview() {
   isReview = true;
   replayIndex = 0;
   lastSeen = 0;
+  hitStopRemaining = 0;
   renderer.ghost = null;
   renderer.reset();
   audio.reset();
@@ -1888,6 +1946,7 @@ function checkpoint() {
     ? "CHECKPOINT PRACTICE · ASSISTED"
     : "CHECKPOINT PRACTICE";
   inputs = structuredClone(copy.input);
+  hitStopRemaining = 0;
   renderer.ghost = null;
   renderer.reset();
   audio.reset();
@@ -1935,7 +1994,7 @@ function overlay() {
         saveGhost(sim.route.id, bestGhost);
       }
     }
-    out.innerHTML = `<div class="overlay-card"><span class="eyebrow">${isReview ? "ROUTE REVIEW" : sim.state === "finished" ? "NICELY HELD." : "ONE MORE TRY."}</span><h2>${sim.state === "finished" ? "You found your flow." : "The next catch is yours."}</h2><p>${sim.state === "finished" ? `${sim.catchCount} catches · ${sim.time.toFixed(1)} seconds` : sim.lastCause || "Reach, pull, release. Timing makes the difference."}${isReview ? " · Review does not change your progress." : ""}</p><button class="primary" id="result-main">${isReview ? "Back to your climb" : sim.state === "finished" && index < 11 ? "Next route →" : "Try again ↻"}</button><div class="result-links"><button id="review">Review attempt</button>${lastCheckpoint && !isReview ? '<button id="checkpoint">Practice last catch</button>' : ""}<button id="save-replay">Save replay</button></div></div>`;
+    out.innerHTML = `<div class="overlay-card"><span class="eyebrow">${isReview ? "ROUTE REVIEW" : sim.state === "finished" ? "NICELY HELD." : "ONE MORE TRY."}</span><h2>${sim.state === "finished" ? "You found your flow." : "The next catch is yours."}</h2><p>${sim.state === "finished" ? `${sim.catchCount} catches · ${sim.time.toFixed(1)} seconds${sim.longestFlight >= 0.08 ? ` · ${sim.longestFlight.toFixed(2)}s flight` : ""}${sim.apexCatchCount ? ` · ${sim.apexCatchCount} apex` : ""}` : sim.lastCause || "Reach, pull, release. Timing makes the difference."}${isReview ? " · Review does not change your progress." : ""}</p><button class="primary" id="result-main">${isReview ? "Back to your climb" : sim.state === "finished" && index < 11 ? "Next route →" : "Try again ↻"}</button><div class="result-links"><button id="review">Review attempt</button>${lastCheckpoint && !isReview ? '<button id="checkpoint">Practice last catch</button>' : ""}<button id="save-replay">Save replay</button></div></div>`;
     el("result-main").onclick = () =>
       retryRoute(
         !isReview && sim.state === "finished" ? Math.min(index + 1, 11) : index,
@@ -1956,8 +2015,15 @@ function overlay() {
 function hud() {
   motionFeedback.classList.toggle(
     "hidden",
-    mode !== "camera" || camera.calibration.armMode === "reach",
+    mode === "intro" ||
+      (mode === "camera" && camera.calibration.armMode === "reach"),
   );
+  motionFeedback.classList.toggle("dyno-ready", sim.dynoReady);
+  const releaseBothBtn = document.getElementById("release-both");
+  if (releaseBothBtn) {
+    releaseBothBtn.classList.toggle("dyno-ready", sim.dynoReady);
+    releaseBothBtn.dataset.ready = String(sim.dynoReady);
+  }
   if (sim.tick !== motionTick) {
     const velocity = sim.rig.velocity();
     const changed = sim.tick < motionTick;
@@ -1970,24 +2036,55 @@ function hud() {
     motionTick = sim.tick;
   }
   const moving = Math.hypot(shownVelocity.x, shownVelocity.y);
+  const chargePct = Math.round(sim.dynoCharge * 100);
   text(
     "motion-label",
     sim.flight > 0
-      ? "IN FLIGHT"
-      : `${sim.controller === "anchors" ? "HAND ANCHORS" : "JOINT MOTORS"} · MOMENTUM`,
+      ? sim.dynoLaunch
+        ? "DYNO FLIGHT"
+        : "IN FLIGHT"
+      : sim.dynoReady
+        ? "DYNO READY!"
+        : sim.dynoSource === "swing" && sim.dynoCharge > 0.25
+          ? `SWINGING · ${chargePct}%`
+          : sim.dynoSource === "push" && sim.dynoCharge > 0.25
+            ? `PUSHING UP · ${chargePct}%`
+            : `${sim.controller === "anchors" ? "HAND ANCHORS" : "JOINT MOTORS"} · MOMENTUM`,
   );
+  const sourceTag = document.getElementById("dyno-source-tag");
+  if (sourceTag) {
+    const tagText =
+      sim.flight === 0 && sim.dynoCharge > 0.2
+        ? sim.dynoSource === "swing"
+          ? "SWING"
+          : sim.dynoSource === "push"
+            ? "PUSH UP"
+            : ""
+        : "";
+    if (sourceTag.textContent !== tagText) sourceTag.textContent = tagText;
+    sourceTag.dataset.source = sim.dynoSource;
+  }
   text(
     "motion-speed",
     `${Math.abs(shownVelocity.x) > 0.12 ? (shownVelocity.x < 0 ? "← " : "→ ") : ""}${moving.toFixed(1)} m/s`,
   );
-  el("motion-energy").style.width = `${Math.min(100, (moving / 2.4) * 100)}%`;
+  el("motion-energy").style.width =
+    `${Math.min(100, Math.max(moving / 2.4, sim.dynoCharge) * 100)}%`;
   text(
     "motion-cue",
     sim.flight > 0
-      ? "Reach and close to catch."
-      : shownVelocity.y > 0.4
-        ? "Rising. Spread both hands to fly."
-        : "Sweep side to side to swing. Tuck the supporting arm to pull.",
+      ? mode === "camera"
+        ? "Reach and close both hands to catch."
+        : "Aim cursor at hold · click or press G to catch!"
+      : sim.dynoReady
+        ? mode === "camera"
+          ? "DYNO READY · Spread BOTH hands together to fly!"
+          : "DYNO READY · Press V to release BOTH hands & fly!"
+        : mode === "practice"
+          ? "W / Space pushes up · A / D swings · V releases both hands."
+          : shownVelocity.y > 0.4
+            ? "Rising. Spread both hands together to fly."
+            : "Sweep side to side to swing. Tuck supporting arms to pull.",
   );
   recenterButton.classList.toggle("hidden", mode !== "camera");
   recordButton.classList.toggle("hidden", mode !== "camera");
@@ -2099,6 +2196,8 @@ function hud() {
 }
 let wasSwaying = false;
 let ghostStride = 8;
+const approachScalar = (cur: number, goal: number, maxStep: number) =>
+  cur + clamp(goal - cur, -maxStep, maxStep);
 function frame(t: number) {
   if (mode === "intro" && document.hidden) {
     last = t;
@@ -2120,26 +2219,67 @@ function frame(t: number) {
     recoverCamera("Camera frames delayed");
   }
   if (mode === "practice" && !review) {
-    const swayOffset = (swayRight ? 0.28 : 0) - (swayLeft ? 0.28 : 0);
-    for (const side of hands) {
-      if (pull || extend || swayOffset !== 0) {
-        if (pull || extend) inputs[side].target.y = pull ? 0.27 : 0.71;
-        inputs[side].target.x =
-          (side === "left" ? -0.12 : 0.12) +
-          (sim.rig instanceof AnchorRig ? -swayOffset : swayOffset);
-      } else if (wasSwaying && sim.contacts[side]) {
-        inputs[side].target.x = side === "left" ? -0.12 : 0.12;
+    const airborne =
+      sim.state === "playing" && !sim.contacts.left && !sim.contacts.right;
+    const swayOffset = (swayRight ? 0.42 : 0) - (swayLeft ? 0.42 : 0);
+    if (airborne && !dragging) {
+      for (const side of hands) {
+        if (pointerActive) {
+          inputs[side].target = sub(
+            add(pointer, v(side === "left" ? -0.085 : 0.085, 0)),
+            sim.rig.shoulder(side),
+          );
+        } else {
+          inputs[side].target.x = approachScalar(
+            inputs[side].target.x,
+            side === "left" ? -0.09 : 0.09,
+            3.2 * dt,
+          );
+          inputs[side].target.y = approachScalar(
+            inputs[side].target.y,
+            0.68,
+            3.2 * dt,
+          );
+        }
       }
-      if (
-        inputs[side].grip === "release" &&
-        side !== selected &&
-        !dragging &&
-        sim.cooldown[side] === 0
-      ) {
-        /* Deliberate release stays released until the player curls. */
+    } else {
+      for (const side of hands) {
+        const baseX = side === "left" ? -0.12 : 0.12;
+        if (pull || extend || swayOffset !== 0) {
+          if (pull || extend) {
+            inputs[side].target.y = approachScalar(
+              inputs[side].target.y,
+              pull ? 0.16 : 0.74,
+              2.0 * dt,
+            );
+          }
+          const goalX =
+            baseX + (sim.rig instanceof AnchorRig ? -swayOffset : swayOffset);
+          inputs[side].target.x = approachScalar(
+            inputs[side].target.x,
+            goalX,
+            2.1 * dt,
+          );
+        } else if (wasSwaying && sim.contacts[side]) {
+          inputs[side].target.x = approachScalar(
+            inputs[side].target.x,
+            baseX,
+            2.1 * dt,
+          );
+          if (Math.abs(inputs[side].target.x - baseX) > 1e-4) {
+            /* Keep smoothing back to neutral */
+          }
+        }
       }
     }
-    wasSwaying = swayOffset !== 0;
+    wasSwaying =
+      swayOffset !== 0 ||
+      hands.some(
+        (side) =>
+          !!sim.contacts[side] &&
+          Math.abs(inputs[side].target.x - (side === "left" ? -0.12 : 0.12)) >
+            1e-3,
+      );
     if (dragging) {
       inputs[selected].target = sub(pointer, sim.rig.shoulder(selected));
       inputs[selected].grip = "release";
@@ -2149,59 +2289,63 @@ function frame(t: number) {
   updateCalibration(t);
   updateCameraStart(t);
   if (mode !== "intro" && !review) sim.setInput(inputs);
-  accumulator += dt;
-  while (accumulator >= sim.dt) {
-    if (mode === "intro" && introReplay && !save.reduced) {
-      if (sim.state === "playing" && sim.tick < introReplay.duration) {
-        while (introReplay.frames[introReplayCursor]?.tick <= sim.tick) {
-          sim.setInput(introReplay.frames[introReplayCursor++].input);
+  if (hitStopRemaining > 0) {
+    hitStopRemaining = Math.max(0, hitStopRemaining - dt);
+  } else {
+    accumulator += dt;
+    while (accumulator >= sim.dt) {
+      if (mode === "intro" && introReplay && !save.reduced) {
+        if (sim.state === "playing" && sim.tick < introReplay.duration) {
+          while (introReplay.frames[introReplayCursor]?.tick <= sim.tick) {
+            sim.setInput(introReplay.frames[introReplayCursor++].input);
+          }
+          sim.step();
         }
-        sim.step();
+        accumulator -= sim.dt;
+        continue;
+      }
+      if (review && replay) {
+        while (replay.frames[replayIndex]?.tick <= sim.tick) {
+          sim.setInput(replay.frames[replayIndex++].input);
+        }
+        if (sim.tick >= replay.duration) {
+          sim.pause("Review complete");
+          review = false;
+        }
+      }
+      if (
+        sim.tick === 0 &&
+        ghostRun.length === 0 &&
+        sim.state === "playing" &&
+        mode !== "intro" &&
+        !isReview &&
+        !lab
+      ) {
+        ghostStride = 8;
+        recordGhostKeyframe();
+        lastGhostTick = 0;
+      }
+      sim.step();
+      if (
+        sim.state === "playing" &&
+        mode !== "intro" &&
+        !isReview &&
+        !lab &&
+        sim.tick - lastGhostTick >= ghostStride
+      ) {
+        if (ghostRun.length >= 240) {
+          ghostRun = ghostRun.filter(
+            (_, idx) => idx % 2 === 0 || idx === ghostRun.length - 1,
+          );
+          ghostStride *= 2;
+        }
+        if (ghostRun.length < 240) {
+          recordGhostKeyframe();
+          lastGhostTick = sim.tick;
+        }
       }
       accumulator -= sim.dt;
-      continue;
     }
-    if (review && replay) {
-      while (replay.frames[replayIndex]?.tick <= sim.tick) {
-        sim.setInput(replay.frames[replayIndex++].input);
-      }
-      if (sim.tick >= replay.duration) {
-        sim.pause("Review complete");
-        review = false;
-      }
-    }
-    if (
-      sim.tick === 0 &&
-      ghostRun.length === 0 &&
-      sim.state === "playing" &&
-      mode !== "intro" &&
-      !isReview &&
-      !lab
-    ) {
-      ghostStride = 8;
-      recordGhostKeyframe();
-      lastGhostTick = 0;
-    }
-    sim.step();
-    if (
-      sim.state === "playing" &&
-      mode !== "intro" &&
-      !isReview &&
-      !lab &&
-      sim.tick - lastGhostTick >= ghostStride
-    ) {
-      if (ghostRun.length >= 240) {
-        ghostRun = ghostRun.filter(
-          (_, idx) => idx % 2 === 0 || idx === ghostRun.length - 1,
-        );
-        ghostStride *= 2;
-      }
-      if (ghostRun.length < 240) {
-        recordGhostKeyframe();
-        lastGhostTick = sim.tick;
-      }
-    }
-    accumulator -= sim.dt;
   }
   if (mode === "intro" && introReplay && !save.reduced) {
     if (canvas.dataset.demoTick !== String(sim.tick)) {
@@ -2227,6 +2371,9 @@ function frame(t: number) {
         if (e.kind === "catch" && sim.visited.size > seenVisited) {
           seenVisited = sim.visited.size;
           lastCheckpoint = sim.tick;
+        }
+        if ((e.impact === "apex" || e.impact === "dyno") && !save.reduced) {
+          hitStopRemaining = mode === "camera" && !isReview ? 0.024 : 0.042;
         }
       }
     audio.play(sim.events);
@@ -2263,8 +2410,9 @@ function frame(t: number) {
       () => recordingFrame(t),
     );
   }
-  if (t - lastHud > 100) {
+  if (t - lastHud > 80 || sim.dynoReady !== lastDynoReady) {
     lastHud = t;
+    lastDynoReady = sim.dynoReady;
     hud();
   }
   requestAnimationFrame(frame);
@@ -2287,6 +2435,18 @@ Object.defineProperty(window, "cruxMotion", {
     },
     get assisted() {
       return sim.assisted;
+    },
+    get dynoCharge() {
+      return sim.dynoCharge;
+    },
+    get dynoReady() {
+      return sim.dynoReady;
+    },
+    get dynoSource() {
+      return sim.dynoSource;
+    },
+    get dynoLaunch() {
+      return sim.dynoLaunch;
     },
     get delegate() {
       return camera.delegate;

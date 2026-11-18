@@ -8,12 +8,16 @@ import {
 } from "../core/types";
 import { v, add, sub, mul, clamp, dist, ik, type V } from "../core/math";
 import { FollowCamera } from "./FollowCamera";
+
 const colors = {
   jug: "#8ae2c7",
   crimp: "#efb373",
   sloper: "#a9baf2",
   pinch: "#ef9f96",
 };
+
+type ImpactKind = "launch" | "dyno" | "apex" | "finish";
+
 export class Renderer {
   ctx: CanvasRenderingContext2D;
   w = 1;
@@ -24,15 +28,32 @@ export class Renderer {
     typeof matchMedia === "function" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
   ghost: { torso: V; angle: number; left: V; right: V; legs?: V } | null = null;
-  private particles: { p: V; vel: V; life: number; color: string }[] = [];
+  impactFrame: {
+    timer: number;
+    duration: number;
+    kind: ImpactKind;
+    p: V;
+    dir: V;
+  } | null = null;
+  private particles: {
+    p: V;
+    vel: V;
+    life: number;
+    color: string;
+    size?: number;
+  }[] = [];
   private callouts: {
     p: V;
     text: string;
     age: number;
     duration: number;
     color: string;
+    accent: string;
+    bg: string;
+    emphasis: boolean;
   }[] = [];
   private strainTick = { left: -1, right: -1 };
+  private restTick = { left: -1, right: -1 };
   private seen = 0;
   private trail: V[] = [];
   private bgGradient: CanvasGradient | null = null;
@@ -73,9 +94,11 @@ export class Renderer {
   }
   reset() {
     this.view.reset();
+    this.impactFrame = null;
     this.particles = [];
     this.callouts = [];
     this.strainTick = { left: -1, right: -1 };
+    this.restTick = { left: -1, right: -1 };
     this.seen = 0;
     this.trail = [];
   }
@@ -104,6 +127,49 @@ export class Renderer {
     );
     this.scale = this.view.scale;
     this.origin = this.view.origin;
+
+    if (this.impactFrame) {
+      this.impactFrame.timer -= dt;
+      const elapsed = this.impactFrame.duration - this.impactFrame.timer;
+      if (elapsed >= Math.max(this.impactFrame.duration, 0.11)) {
+        this.impactFrame = null;
+      }
+    }
+    for (const e of s.events) {
+      if (e.id > this.seen) {
+        this.seen = e.id;
+        this.effect(e, s);
+      }
+    }
+
+    if (!this.reduced && s.state === "playing") {
+      const restingFn = (s as any).resting as
+        | ((side: Hand) => boolean)
+        | undefined;
+      if (typeof restingFn === "function") {
+        for (const side of hands) {
+          if (
+            restingFn.call(s, side) &&
+            s.tick !== this.restTick[side] &&
+            s.tick % 10 === (side === "left" ? 0 : 5)
+          ) {
+            this.restTick[side] = s.tick;
+            const fromBag = ((s.tick / 10) | 0) % 2 === 0;
+            const bagPos = s.rig.torso.getWorldPoint(v(-0.04, -0.18));
+            const src = fromBag ? bagPos : s.rig.hand(side);
+            const driftX = (((s.tick * 13 + (side === "left" ? 2 : 7)) % 9) - 4) * 0.025;
+            this.particles.push({
+              p: add(src, v(driftX * 0.3, -0.015)),
+              vel: v(driftX, 0.12),
+              life: 0.46,
+              color: "#edf8f2",
+              size: 2.1,
+            });
+          }
+        }
+      }
+    }
+
     ctx.clearRect(0, 0, this.w, this.h);
     if (!this.bgGradient || this.bgW !== this.w || this.bgH !== this.h) {
       const bg = ctx.createLinearGradient(0, 0, this.w, this.h);
@@ -115,6 +181,31 @@ export class Renderer {
     }
     ctx.fillStyle = this.bgGradient;
     ctx.fillRect(0, 0, this.w, this.h);
+
+    let kickX = 0,
+      kickY = 0;
+    if (!this.reduced && this.impactFrame) {
+      const imp = this.impactFrame;
+      const elapsed = clamp(imp.duration - imp.timer, 0, 0.11);
+      if (elapsed < 0.11) {
+        const decay = (1 - elapsed / 0.11) ** 2;
+        const basePx =
+          imp.kind === "apex" || imp.kind === "finish"
+            ? 5.8
+            : imp.kind === "dyno"
+              ? 5.0
+              : 4.2;
+        const mag = basePx * decay;
+        kickX = imp.dir.x * mag;
+        kickY = -imp.dir.y * mag;
+      }
+    }
+
+    ctx.save();
+    if (kickX !== 0 || kickY !== 0) {
+      ctx.translate(kickX, kickY);
+    }
+
     // Wall panels, seams and bolt pattern are procedural, with no raster assets.
     ctx.strokeStyle = "#ffffff06";
     ctx.lineWidth = 1;
@@ -125,8 +216,8 @@ export class Renderer {
       ctx.lineTo(p.x + 35, this.h);
     }
     ctx.stroke();
-    const worldMin = this.toWorld(v(-2, this.h + 2)),
-      worldMax = this.toWorld(v(this.w + 2, -2)),
+    const worldMin = this.toWorld(v(-8, this.h + 8)),
+      worldMax = this.toWorld(v(this.w + 8, -8)),
       minX =
         -2.3 +
         Math.max(0, Math.ceil((Math.max(-2.3, worldMin.x) + 2.3) / 0.22)) *
@@ -202,8 +293,9 @@ export class Renderer {
       if (this.trail.length > 24) this.trail.shift();
     }
     if (!this.reduced && s.flight > 0) {
-      ctx.strokeStyle = "#b0f5df32";
-      ctx.lineWidth = 3;
+      const dynoAir = !!(s as any).dynoLaunch;
+      ctx.strokeStyle = dynoAir ? "#ffd98e4d" : "#b0f5df32";
+      ctx.lineWidth = dynoAir ? 3.8 : 3;
       ctx.beginPath();
       this.trail.forEach((p, i) => {
         const q = this.toScreen(p);
@@ -211,69 +303,271 @@ export class Renderer {
       });
       ctx.stroke();
     }
+
     if (this.ghost) this.drawGhost(this.ghost);
+    this.drawDynoPreview(s, showIntent);
     this.body(s, selected, showIntent, nextHold?.p);
-    for (const e of s.events)
-      if (e.id > this.seen) {
-        this.seen = e.id;
-        this.effect(e);
-      }
+
+    if (!this.reduced && this.impactFrame && this.impactFrame.timer > 0) {
+      this.drawImpactOverlay(this.impactFrame);
+    }
+
     if (!this.reduced) {
       for (const p of this.particles) {
         p.life -= dt;
-        p.vel.y -= dt * 0.8;
+        p.vel.y -= dt * 0.85;
         p.p = add(p.p, mul(p.vel, dt));
         const q = this.toScreen(p.p);
-        ctx.globalAlpha = clamp(p.life, 0, 1);
+        const sz = p.size ?? 2.5;
+        ctx.globalAlpha = clamp(p.life * 1.35, 0, 1);
         ctx.fillStyle = p.color;
-        ctx.fillRect(q.x, q.y, 2.5, 2.5);
+        ctx.fillRect(q.x - sz * 0.5, q.y - sz * 0.5, sz, sz);
       }
       ctx.globalAlpha = 1;
-      this.particles = this.particles.filter((p) => p.life > 0).slice(-180);
+      this.particles = this.particles.filter((p) => p.life > 0);
+      if (this.particles.length > 180) {
+        this.particles = this.particles.slice(-180);
+      }
     }
+
     if (this.callouts.length) {
       ctx.save();
       for (const item of this.callouts) {
         item.age += dt;
         const alpha =
-          clamp(item.age / 0.08, 0, 1) *
-          clamp((item.duration - item.age) / 0.32, 0, 1);
+          clamp(item.age / 0.06, 0, 1) *
+          clamp((item.duration - item.age) / 0.3, 0, 1);
         if (alpha <= 0.01) continue;
         const q = this.toScreen(item.p),
-          rise = this.reduced ? 0 : (item.age / item.duration) * 18,
-          cy = q.y - 30 - rise;
+          rise = this.reduced ? 0 : (item.age / item.duration) * 22,
+          pop =
+            !this.reduced && item.emphasis
+              ? 1 + 0.14 * Math.exp(-item.age * 20)
+              : 1,
+          cy = q.y - 32 - rise;
+        ctx.save();
+        ctx.translate(q.x, cy);
+        if (pop !== 1) ctx.scale(pop, pop);
         ctx.globalAlpha = alpha;
-        ctx.font = '700 10px "Barlow", sans-serif';
-        const padX = 9,
+        ctx.font = item.emphasis
+          ? '800 10.5px "Barlow", sans-serif'
+          : '700 10px "Barlow", sans-serif';
+        const padX = item.emphasis ? 11 : 9,
+          pillH = item.emphasis ? 22 : 20,
           tw = ctx.measureText(item.text).width + padX * 2;
-        ctx.fillStyle = "rgba(12, 26, 32, 0.86)";
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = 1.2;
+        if (item.emphasis) {
+          ctx.strokeStyle = item.accent + "55";
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.roundRect(-tw / 2 - 1.5, -pillH / 2 - 1.5, tw + 3, pillH + 3, 12);
+          ctx.stroke();
+        }
+        ctx.fillStyle = item.bg;
+        ctx.strokeStyle = item.accent;
+        ctx.lineWidth = item.emphasis ? 1.6 : 1.2;
         ctx.beginPath();
-        ctx.roundRect(q.x - tw / 2, cy - 10, tw, 20, 10);
+        ctx.roundRect(-tw / 2, -pillH / 2, tw, pillH, pillH / 2);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = item.color;
         ctx.textAlign = "center";
-        ctx.fillText(item.text, q.x, cy + 3.5);
+        ctx.fillText(item.text, 0, 3.6);
+        ctx.restore();
       }
       ctx.restore();
       this.callouts = this.callouts.filter((item) => item.age < item.duration);
     }
+
     const floor = this.toScreen(v(0, -1.12));
-    if (floor.y < this.h) {
+    if (floor.y < this.h + 8) {
       ctx.fillStyle = "#101e24";
-      ctx.fillRect(0, floor.y, this.w, this.h - floor.y);
+      ctx.fillRect(-8, floor.y, this.w + 16, this.h - floor.y + 16);
       ctx.strokeStyle = "#ffffff13";
       ctx.beginPath();
-      ctx.moveTo(0, floor.y);
-      ctx.lineTo(this.w, floor.y);
+      ctx.moveTo(-8, floor.y);
+      ctx.lineTo(this.w + 8, floor.y);
       ctx.stroke();
     }
+    ctx.restore();
+
     ctx.font = '10px "Barlow", sans-serif';
     ctx.fillStyle = "#9bb4b36b";
     ctx.textAlign = "right";
     ctx.fillText("CAMPUS / UPPER BODY ONLY", this.w - 22, this.h - 20);
+  }
+  private drawDynoPreview(s: Simulation, showIntent: boolean) {
+    if (!showIntent || !s.contacts.left || !s.contacts.right) return;
+    if (
+      (s.contacts.left.age ?? 1) < 0.22 ||
+      (s.contacts.right.age ?? 1) < 0.22 ||
+      (this.impactFrame &&
+        this.impactFrame.timer > 0 &&
+        this.impactFrame.kind !== "launch")
+    )
+      return;
+    const charge = clamp(Number((s as any).dynoCharge ?? 0), 0, 1);
+    if (charge <= 0.12) return;
+    const dynoReady = !!(s as any).dynoReady;
+    const dynoVec = (s as any).dynoVector as V | undefined;
+    const c = this.ctx,
+      com = s.rig.com(),
+      cp = this.toScreen(com),
+      arcR = 0.31 * this.scale,
+      startA = -Math.PI * 1.22,
+      spanA = Math.PI * 1.44;
+    const ringColor = dynoReady
+      ? "#ffd98e"
+      : charge > 0.58
+        ? "#9ce7c8"
+        : "#4cc3b7";
+
+    c.save();
+    // Subtle background gauge track around climber torso
+    c.strokeStyle = "#ffffff18";
+    c.lineWidth = 3;
+    c.lineCap = "round";
+    c.beginPath();
+    c.arc(cp.x, cp.y, arcR, startA, startA + spanA);
+    c.stroke();
+
+    if (dynoReady && !this.reduced) {
+      const pulse = 0.28 + 0.14 * Math.sin(s.tick * 0.25);
+      c.strokeStyle = `rgba(255, 217, 142, ${pulse.toFixed(2)})`;
+      c.lineWidth = 6.5;
+      c.beginPath();
+      c.arc(cp.x, cp.y, arcR, startA, startA + spanA * charge);
+      c.stroke();
+    }
+
+    c.strokeStyle = ringColor;
+    c.lineWidth = dynoReady ? 3.4 : 2.8;
+    c.beginPath();
+    c.arc(cp.x, cp.y, arcR, startA, startA + spanA * charge);
+    c.stroke();
+
+    if (dynoReady) {
+      const ly = cp.y - 0.77 * this.scale;
+      c.font = '800 9.5px "Barlow", sans-serif';
+      const label = "DYNO READY!",
+        tw = c.measureText(label).width + 16;
+      c.fillStyle = "rgba(15, 29, 34, 0.88)";
+      c.strokeStyle = "#ffd98ecc";
+      c.lineWidth = 1.3;
+      c.beginPath();
+      c.roundRect(cp.x - tw / 2, ly - 9.5, tw, 18, 9);
+      c.fill();
+      c.stroke();
+      c.fillStyle = "#ffe29e";
+      c.textAlign = "center";
+      c.fillText(label, cp.x, ly + 2.8);
+    }
+
+    // 7-dot ballistic launch trajectory preview: p(t) = com + dynoVec * t + 0.5 * (0, -9.81) * t^2
+    if (
+      dynoReady &&
+      dynoVec &&
+      Math.abs(dynoVec.x) + Math.abs(dynoVec.y) > 0.4
+    ) {
+      const pts: V[] = [];
+      for (let k = 1; k <= 7; k++) {
+        const t = k * 0.05;
+        pts.push(
+          this.toScreen(
+            v(
+              com.x + dynoVec.x * t,
+              com.y + dynoVec.y * t - 0.5 * 9.81 * t * t,
+            ),
+          ),
+        );
+      }
+      c.strokeStyle = "#ffd98e40";
+      c.lineWidth = 1.6;
+      c.setLineDash([3, 4]);
+      c.beginPath();
+      c.moveTo(cp.x, cp.y);
+      for (const pt of pts) c.lineTo(pt.x, pt.y);
+      c.stroke();
+      c.setLineDash([]);
+
+      // Batched soft glow pass + crisp bright core pass across all 7 dots
+      c.fillStyle = "#9ce7c838";
+      c.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i],
+          gr = 5.8 - i * 0.35;
+        c.moveTo(pt.x + gr, pt.y);
+        c.arc(pt.x, pt.y, gr, 0, Math.PI * 2);
+      }
+      c.fill();
+
+      c.fillStyle = "#ffe29e";
+      c.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i],
+          cr = 3.1 - i * 0.18;
+        c.moveTo(pt.x + cr, pt.y);
+        c.arc(pt.x, pt.y, cr, 0, Math.PI * 2);
+      }
+      c.fill();
+
+      const lastPt = pts[pts.length - 1];
+      c.strokeStyle = "#ffd98eb8";
+      c.lineWidth = 1.4;
+      c.beginPath();
+      c.arc(lastPt.x, lastPt.y, 5.4, 0, Math.PI * 2);
+      c.stroke();
+    }
+    c.restore();
+  }
+  private drawImpactOverlay(imp: NonNullable<Renderer["impactFrame"]>) {
+    const c = this.ctx,
+      center = this.toScreen(imp.p),
+      progress = clamp(1 - imp.timer / imp.duration, 0, 1),
+      fade = clamp(imp.timer / imp.duration, 0, 1),
+      ringColor = imp.kind === "apex" ? "#ffd98e" : "#eafff5";
+
+    c.save();
+    // 1. Brief radial dark-edge contrast flash (#07131844) around impact center
+    const maxR = Math.max(this.w, this.h) * 0.75;
+    const vignette = c.createRadialGradient(
+      center.x,
+      center.y,
+      20,
+      center.x,
+      center.y,
+      maxR,
+    );
+    vignette.addColorStop(0, "rgba(7, 19, 24, 0)");
+    vignette.addColorStop(0.35, "rgba(7, 19, 24, 0.08)");
+    vignette.addColorStop(1, "#07131844");
+    c.globalAlpha = fade;
+    c.fillStyle = vignette;
+    c.fillRect(-10, -10, this.w + 20, this.h + 20);
+
+    // 2. Batched expanding double shockwave ring + 12 crisp radial impact speed lines
+    const rOuter = (0.14 + progress * 0.46) * this.scale,
+      rInner = (0.07 + progress * 0.27) * this.scale,
+      basePhase = imp.kind === "apex" ? 0.13 : 0.26;
+    c.globalAlpha = 0.35 + 0.65 * fade;
+    c.strokeStyle = ringColor;
+    c.lineWidth = imp.kind === "apex" ? 2.4 : 2;
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(center.x + rOuter, center.y);
+    c.arc(center.x, center.y, rOuter, 0, Math.PI * 2);
+    c.moveTo(center.x + rInner, center.y);
+    c.arc(center.x, center.y, rInner, 0, Math.PI * 2);
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2 + basePhase,
+        cos = Math.cos(ang),
+        sin = Math.sin(ang),
+        r0 = rOuter * 0.78 + (i % 2) * 5,
+        r1 = rOuter * (i % 3 === 0 ? 1.52 : 1.3) + progress * 14;
+      c.moveTo(center.x + cos * r0, center.y + sin * r0);
+      c.lineTo(center.x + cos * r1, center.y + sin * r1);
+    }
+    c.stroke();
+    c.restore();
   }
   private hold(
     h: Hold,
@@ -310,6 +604,12 @@ export class Renderer {
         c.restore();
       }
     }
+    const impactRim =
+      !this.reduced &&
+      !!this.impactFrame &&
+      this.impactFrame.timer > 0 &&
+      this.impactFrame.kind !== "launch" &&
+      dist(h.p, this.impactFrame.p) <= h.radius + 0.16;
     c.save();
     c.translate(p.x, p.y);
     if (h.direction.y < 0) c.rotate(Math.PI);
@@ -375,12 +675,19 @@ export class Renderer {
     }
     c.restore();
     holdPath();
-    c.strokeStyle = occupied ? "#e7fff3" : "#0c191f";
-    c.lineWidth = occupied ? 2.4 : 3;
-    c.stroke();
+    if (impactRim) {
+      c.strokeStyle =
+        this.impactFrame!.kind === "apex" ? "#ffd98e" : "#eafff5";
+      c.lineWidth = 4.2;
+      c.stroke();
+    } else {
+      c.strokeStyle = occupied ? "#e7fff3" : "#0c191f";
+      c.lineWidth = occupied ? 2.4 : 3;
+      c.stroke();
+    }
     // Sculpted lip highlight
-    c.strokeStyle = "#ffffff82";
-    c.lineWidth = 2;
+    c.strokeStyle = impactRim ? "#ffffff" : "#ffffff82";
+    c.lineWidth = impactRim ? 2.6 : 2;
     c.beginPath();
     if (h.kind === "crimp") {
       c.moveTo(-r * 0.92, -r * 0.16);
@@ -587,7 +894,13 @@ export class Renderer {
       rig = s.rig,
       torso = rig.torso,
       torsoPos = torso.getPosition(),
-      torsoAngle = torso.getAngle();
+      torsoAngle = torso.getAngle(),
+      climberRim =
+        !this.reduced && !!this.impactFrame && this.impactFrame.timer > 0
+          ? this.impactFrame.kind === "apex"
+            ? "#ffd98e"
+            : "#eafff5"
+          : null;
     // Body transforms are physical, including the passive lower-body hinge.
     const hip = torso.getWorldPoint(v(0, -0.25)),
       legEnd = rig.legs.getWorldPoint(v(0, -0.34));
@@ -709,6 +1022,11 @@ export class Renderer {
       10,
     );
     c.fill();
+    if (climberRim) {
+      c.strokeStyle = climberRim;
+      c.lineWidth = 2.4;
+      c.stroke();
+    }
     c.fillStyle = "#ffffff20";
     c.fillRect(
       -0.14 * this.scale,
@@ -754,6 +1072,11 @@ export class Renderer {
     c.beginPath();
     c.ellipse(0, 0, 0.14 * this.scale, 0.16 * this.scale, 0, 0, Math.PI * 2);
     c.fill();
+    if (climberRim) {
+      c.strokeStyle = climberRim;
+      c.lineWidth = 2.2;
+      c.stroke();
+    }
     // Gaze eyes looking toward active hand / next hold
     const eyeX = gx * 0.052 * this.scale,
       eyeY = -gy * 0.042 * this.scale - 0.015 * this.scale,
@@ -808,7 +1131,7 @@ export class Renderer {
         0.108,
       );
       if (isFront) {
-        this.line(elbow, hand, "#ffffff1c", 0.028);
+        this.line(elbow, hand, climberRim ? climberRim + "88" : "#ffffff1c", 0.028);
       }
     }
     // 5. Wrist rings, grip-shape indicators, strain warnings & intent guides
@@ -865,8 +1188,12 @@ export class Renderer {
           });
         }
       }
-      c.strokeStyle = highStrain ? "#ff9478" : accent;
-      c.lineWidth = 2.8;
+      c.strokeStyle = climberRim && contact
+        ? climberRim
+        : highStrain
+          ? "#ff9478"
+          : accent;
+      c.lineWidth = climberRim && contact ? 3.5 : 2.8;
       c.beginPath();
       c.arc(hp.x, hp.y, 0.055 * this.scale, 0, Math.PI * 2);
       c.stroke();
@@ -954,44 +1281,205 @@ export class Renderer {
     c.roundRect(h.x - 22, h.y + 14, 44 * s.energy, 4, 2);
     c.fill();
   }
-  private effect(e: SimEvent) {
-    if (e.kind === "finish") {
+  private effect(e: SimEvent, s: Simulation) {
+    const impact = (e as any).impact as ImpactKind | undefined;
+    const isApex = impact === "apex" || e.message.includes("Apex");
+    const isDynoCatch =
+      !isApex &&
+      (impact === "dyno" || (e.kind === "catch" && /dyno/i.test(e.message)));
+    const isDynoLaunch =
+      impact === "launch" || (e.kind === "launch" && /dyno/i.test(e.message));
+    const isFinish = impact === "finish" || e.kind === "finish";
+
+    const vel = s.rig.velocity(),
+      vLen = Math.hypot(vel.x, vel.y),
+      toEvent = sub(e.p, s.rig.com()),
+      toLen = Math.hypot(toEvent.x, toEvent.y),
+      dir =
+        vLen > 0.25
+          ? v(vel.x / vLen, vel.y / vLen)
+          : toLen > 0.05
+            ? v(toEvent.x / toLen, toEvent.y / toLen)
+            : v(0, 1);
+
+    if (isFinish) {
+      this.impactFrame = {
+        timer: 0.07,
+        duration: 0.07,
+        kind: "finish",
+        p: { ...e.p },
+        dir,
+      };
       this.callouts.push({
         p: add(e.p, v(0, 0.35)),
         text: "ROUTE COMPLETE",
         age: 0,
-        duration: 0.9,
-        color: "#f0e6cc",
+        duration: 1.15,
+        color: "#f7efe0",
+        accent: "#ffd98e",
+        bg: "rgba(18, 33, 38, 0.94)",
+        emphasis: true,
       });
-    } else if (e.kind === "catch") {
-      if (/dyno/i.test(e.message)) {
+    } else if (isApex || isDynoCatch) {
+      const prevCenter =
+        this.impactFrame &&
+        this.impactFrame.timer > 0 &&
+        (this.impactFrame.kind === "apex" || this.impactFrame.kind === "dyno")
+          ? v(
+              (this.impactFrame.p.x + e.p.x) * 0.5,
+              Math.max(this.impactFrame.p.y, e.p.y),
+            )
+          : { ...e.p };
+      const upgradeApex =
+        isApex ||
+        (this.impactFrame?.timer && this.impactFrame.kind === "apex");
+      this.impactFrame = {
+        timer: upgradeApex ? 0.065 : 0.055,
+        duration: upgradeApex ? 0.065 : 0.055,
+        kind: upgradeApex ? "apex" : "dyno",
+        p: prevCenter,
+        dir,
+      };
+      const existing = this.callouts.find(
+        (c) =>
+          c.age < 0.08 &&
+          (c.text === "DYNO CAUGHT!" || c.text === "APEX DYNO!"),
+      );
+      if (existing) {
+        existing.p = v(
+          (existing.p.x + e.p.x) * 0.5,
+          Math.max(existing.p.y, e.p.y),
+        );
+        if (isApex) {
+          existing.text = "APEX DYNO!";
+          existing.duration = 1.08;
+          existing.color = "#ffe29a";
+          existing.accent = "#ffd98e";
+          existing.bg = "rgba(28, 24, 14, 0.92)";
+        }
+      } else if (isApex) {
         this.callouts.push({
           p: { ...e.p },
-          text: "DYNO!",
+          text: "APEX DYNO!",
           age: 0,
-          duration: 0.9,
-          color: "#9ce7c8",
+          duration: 1.08,
+          color: "#ffe29a",
+          accent: "#ffd98e",
+          bg: "rgba(28, 24, 14, 0.92)",
+          emphasis: true,
         });
-      } else if (/clean/i.test(e.message)) {
+      } else {
         this.callouts.push({
           p: { ...e.p },
-          text: "CLEAN CATCH",
+          text: "DYNO CAUGHT!",
           age: 0,
-          duration: 0.9,
-          color: "#d2f8c9",
+          duration: 0.98,
+          color: "#b7fae0",
+          accent: "#9ce7c8",
+          bg: "rgba(10, 30, 35, 0.92)",
+          emphasis: true,
+        });
+      }
+    } else if (isDynoLaunch) {
+      this.impactFrame = {
+        timer: 0.045,
+        duration: 0.045,
+        kind: "launch",
+        p: { ...e.p },
+        dir,
+      };
+      this.callouts.push({
+        p: { ...e.p },
+        text: "DYNO LAUNCH!",
+        age: 0,
+        duration: 0.86,
+        color: "#a8f7dc",
+        accent: "#66dfb9",
+        bg: "rgba(10, 29, 34, 0.90)",
+        emphasis: true,
+      });
+    } else if (e.kind === "catch" && /clean/i.test(e.message)) {
+      this.callouts.push({
+        p: { ...e.p },
+        text: "CLEAN CATCH",
+        age: 0,
+        duration: 0.9,
+        color: "#d2f8c9",
+        accent: "#9ce7c8",
+        bg: "rgba(12, 26, 32, 0.86)",
+        emphasis: false,
+      });
+    }
+    if (this.callouts.length > 4) {
+      this.callouts.splice(0, this.callouts.length - 4);
+    }
+
+    if (isDynoLaunch) {
+      for (let i = 0; i < 14; i++) {
+        const spread = ((i / 13) - 0.5) * 1.6;
+        const speed = 0.45 + (i % 4) * 0.22;
+        this.particles.push({
+          p: { ...e.p },
+          vel: v(
+            Math.sin(spread) * speed - dir.x * 0.25,
+            Math.cos(spread) * 0.4 + 0.35,
+          ),
+          life: 0.38 + (i % 4) * 0.09,
+          color: "#eaf8f0",
+          size: 2.3,
+        });
+      }
+    } else if (
+      e.kind === "catch" &&
+      (isApex || isDynoCatch || e.power > 1.2)
+    ) {
+      const count = isApex ? 34 : 26;
+      for (let i = 0; i < count; i++) {
+        const cone = Math.PI * 0.5 + ((i / (count - 1)) - 0.5) * 2.1;
+        const speed = 0.55 + (i % 6) * 0.22;
+        this.particles.push({
+          p: { ...e.p },
+          vel: v(
+            Math.cos(cone) * speed + dir.x * 0.32,
+            Math.abs(Math.sin(cone)) * speed + 0.34,
+          ),
+          life: 0.44 + (i % 5) * 0.11,
+          color:
+            isApex && i % 3 === 0
+              ? "#ffe29c"
+              : i % 2 === 0
+                ? "#f4fbf7"
+                : "#dff4e8",
+          size: isApex && i % 4 === 0 ? 3.1 : 2.6,
+        });
+      }
+    } else if (
+      e.kind === "catch" ||
+      e.kind === "slip" ||
+      e.kind === "finish"
+    ) {
+      const count = e.kind === "finish" ? 50 : 16;
+      for (let i = 0; i < count; i++) {
+        const a = i * 2.399;
+        this.particles.push({
+          p: { ...e.p },
+          vel: v(
+            Math.cos(a) * (0.2 + (i % 5) * 0.13),
+            Math.sin(a) * 0.6 + 0.3,
+          ),
+          life: 0.4 + (i % 5) * 0.12,
+          color:
+            e.kind === "slip"
+              ? "#eab680"
+              : e.kind === "finish" && i % 4 === 0
+                ? "#ffe3a3"
+                : "#e5f4df",
+          size: e.kind === "finish" && i % 4 === 0 ? 3 : 2.5,
         });
       }
     }
-    if (this.callouts.length > 3) this.callouts.splice(0, this.callouts.length - 3);
-    if (e.kind !== "catch" && e.kind !== "slip" && e.kind !== "finish") return;
-    for (let i = 0; i < (e.kind === "finish" ? 50 : 16); i++) {
-      const a = i * 2.399;
-      this.particles.push({
-        p: { ...e.p },
-        vel: v(Math.cos(a) * (0.2 + (i % 5) * 0.13), Math.sin(a) * 0.6 + 0.3),
-        life: 0.4 + (i % 5) * 0.12,
-        color: e.kind === "slip" ? "#eab680" : "#e5f4df",
-      });
+    if (this.particles.length > 180) {
+      this.particles.splice(0, this.particles.length - 180);
     }
   }
 }

@@ -164,6 +164,20 @@ export class AnchorRig extends Rig {
     }
     this.history.clear();
   }
+  applyLaunchVelocity(velocity: V) {
+    this.torso.setLinearVelocity(velocity);
+    this.legs.setLinearVelocity(velocity);
+  }
+  onCatch(preVel: V) {
+    if (len(preVel) <= 0.55) return;
+    const kick = clamp(-preVel.x * 1.8 + preVel.y * 0.25, -4.5, 4.5);
+    this.legs.setAngularVelocity(kick);
+    this.sway = clamp(
+      this.sway + clamp(-preVel.x * 0.06 + preVel.y * 0.015, -0.14, 0.14),
+      -0.2,
+      0.2,
+    );
+  }
   rebase() {
     this.history.clear();
     this.sway = 0;
@@ -175,6 +189,9 @@ export class AnchorRig extends Rig {
   }
   get launchVelocity() {
     return this.history.velocity();
+  }
+  get recentLaunchVelocity() {
+    return this.history.recentVelocity();
   }
   reachError(side: Hand) {
     return Math.max(0, dist(this.shoulder(side), this.hand(side)) - 0.76);

@@ -1,13 +1,13 @@
 # Crux Motion candidate validation
 
-Updated November 17, 2026, Pacific time. Version **0.1.0**, local Windows & GitHub Pages build. Forensic analysis across all six local user play recordings plus production web-performance profiling drove Milestones 1–5 upgrades across camera worker latency, `HolisticLandmarker` 2D unwrapping, closed-fist continuity, seated `resetSafe` framing, free-hand neutral recentering, immediate catch capacity, split-hold pull weighting, bounded postural sway, dyno release velocity, batched 2D Canvas rendering, zero-JSON 120 Hz simulation hot paths, autonomous landing physics showcases, sculpted visual/audio craft, **Assisted climb mode**, and **Personal Best Ghosts**. See [forensic telemetry & game-feel research](../research/GAME_FEEL_AND_WEBCAM_RESEARCH.md), [centering acceptance](CENTERING.md), and [control foundations & ports](../research/CONTROL_FOUNDATIONS.md).
+Updated November 17, 2026, Pacific time. Version **0.1.0**, local Windows & GitHub Pages build. Forensic analysis across all six local user play recordings plus production web-performance profiling drove Milestones 1–7 upgrades across camera worker latency, `HolisticLandmarker` 2D unwrapping, closed-fist continuity, seated `resetSafe` framing, free-hand neutral recentering, immediate catch capacity, split-hold pull weighting, bounded postural sway, simultaneous two-hand dyno mechanics, swing & push-up momentum build-up, apex deadpoint catches, impact frames & micro hit-stop, 7-dot ballistic launch arc previews, batched 2D Canvas rendering, zero-JSON 120 Hz simulation hot paths, autonomous landing physics showcases, sculpted visual/audio craft, **Assisted climb mode**, and **Personal Best Ghosts**. See [forensic telemetry & game-feel research](../research/GAME_FEEL_AND_WEBCAM_RESEARCH.md), [centering acceptance](CENTERING.md), and [control foundations & ports](../research/CONTROL_FOUNDATIONS.md).
 
 ## Build & Live Deployment
 
 - **Live GitHub Pages URL:** [https://superjay0208.github.io/crux-motion/](https://superjay0208.github.io/crux-motion/)
 - **Personal Website Portfolio:** [https://superjay0208.github.io/](https://superjay0208.github.io/) (`superjay0208/superjay0208.github.io` commit `656ca0a27ae3a7116cc08f82c9a301d3a66c6a0b`)
-- Source hash: `d93a923799bf11bc075e95d926e7c2e59b4a78a97b28c252c91f0f95032dcd85` (Ubuntu 24.04 GitHub Actions LF build: `81125abe9c6231de26dfc6a630c6631c8e58b2808dcb48b12db2ecba7ddc4669`).
-- Built at `2026-11-18T01:52:00.483Z` (November 17, 2026 in Pacific time).
+- Source hash: `87f9f851a0ac395962db4221c813385a24bed1cb2352d7b9ba2edbbfe354361d`.
+- Built at `2026-11-18T03:48:04.268Z` (November 17, 2026 in Pacific time).
 - Node 24.19.0 / npm 11.17.0; TypeScript 5.7.2, Vite 6.0.3, Planck 1.5.0, MediaPipe Tasks Vision 0.10.32, Playwright 1.56.1 (Microsoft Edge `157.0.0.0`).
 - Standalone local server serves `game/dist/` at `http://127.0.0.1:4318/`. Double-click `run.bat` to launch locally.
 
@@ -15,38 +15,38 @@ Updated November 17, 2026, Pacific time. Version **0.1.0**, local Windows & GitH
 
 | Check | Result | Scope |
 |---|---|---|
-| TypeScript & Vitest | **113/113 pass** (`10` files) | [Unit results](unit-results.json); tracking, centering, anchors, physics, playability, mirror, motion, hands-free, replay, recording isolation |
-| 120 Hz simulation benchmark | **Pass (`p95 = 0.0316 ms` < `1.0 ms`)** | [Perf benchmark](perf-benchmark.json); `72,000` steps (`600 s` simulated in `1.62 s`, **`369.6×` realtime**) |
+| TypeScript & Vitest | **117/117 pass** (`10` files) | [Unit results](unit-results.json); tracking, centering, anchors + simultaneous two-hand dynos, physics, playability, mirror, motion, hands-free, replay, recording isolation |
+| 120 Hz simulation benchmark | **Pass (`p95 = 0.0318 ms` < `1.0 ms`)** | [Perf benchmark](perf-benchmark.json); `72,000` steps (`600 s` simulated in `1.67 s`, **`358.5×` realtime**) |
 | Production build | **Pass** | Classic bundled worker (`tracking.worker.js`), pinned local models/WASM, inline SVG favicons, build provenance |
 | Hand-anchor campaign | **12/12 solve; 12/12 identical fresh replays** | [Anchor results](campaign-results.json); default `controller: "anchors"` demos |
 | Legacy motor campaign | **12/12 solve; 12/12 identical fresh replays** | [Motor results](motor-campaign-results.json); comparison regression suite (`24/24` total climbs) |
-| Live MS Edge E2E & HTTP suite | **14/14 pass** (`17.2s`) | [Web results](web-results.json); `assets.spec.ts` (`7/7`) + `gameplay.spec.ts` (`7/7`), zero 4xx/5xx, zero external requests |
-| Local `/crux-motion/` subpath gate | **Pass (`153–164 FPS`, `0.73–0.96 ms` work)** | [Subpath perf](web-subpath-perf.json); `0` landing `.task`/`.wasm` fetches, `?route=motion-09` deep-link, reload persistence |
-| Live GitHub Pages HTTPS gate | **Pass (`162–164 FPS`, `149.5 KB` landing)** | [Live perf](web-live-perf.json), [Live screenshot](screenshots/live-crux-motion.jpg); `paired` GPU `17.55 ms`, `holistic` GPU `9.40 ms` |
+| Live MS Edge E2E & HTTP suite | **15/15 pass** (`21.7s`) | [Web results](web-results.json); `assets.spec.ts` (`7/7`) + `gameplay.spec.ts` (`8/8` incl. `First Flight` dyno charge, `KeyV`/`#release-both`, impact frame), zero 4xx/5xx, zero external requests |
+| Local `/crux-motion/` subpath gate | **Pass (`59–60 FPS` vsync, `0.83–1.14 ms` work)** | [Subpath perf](web-subpath-perf.json); `0` landing `.task`/`.wasm` fetches, `?route=motion-09` deep-link, reload persistence |
+| Live GitHub Pages HTTPS gate | **Pass (`>120 FPS` uncapped / `< 1.0 ms` work, ~`155 KB` landing)** | [Live perf](web-live-perf.json), [Live screenshot](screenshots/live-crux-motion.jpg); `paired` & `holistic` GPU worker inference verified |
 | Live personal website portfolio | **Pass (`0` errors, live click-through)** | [Portfolio screenshot](screenshots/portfolio-live.jpg); 3-card row aligned, `Crux` SVG, `CS 184`, and `6` `CS 180` links verified |
-| Live MS Edge GPU worker smoke | **Pass (`GPU` delegate on both)** | [Model smoke](model-smoke.json); `paired` steady-state `17.55–18.27 ms`, `holistic` steady-state `9.40–10.25 ms` on 5 blank frames |
-| Rendered desktop screenshots | **Captured & visually inspected** | [Landing](screenshots/landing-desktop.jpg), [Practice](screenshots/game-desktop.jpg), [Grip Lab](screenshots/grip-lab-desktop.jpg), [Cross Current Beta](screenshots/cross-current-beta.jpg) |
+| Live MS Edge GPU worker smoke | **Pass (`GPU` delegate on both)** | [Model smoke](model-smoke.json); `paired` steady-state `15.83–17.55 ms`, `holistic` steady-state `9.40–9.60 ms` on 5 blank frames |
+| Rendered desktop screenshots | **Captured & visually inspected** | [Landing](screenshots/landing-desktop.jpg), [Practice](screenshots/game-desktop.jpg), [Grip Lab](screenshots/grip-lab-desktop.jpg), [Cross Current Beta](screenshots/cross-current-beta.jpg), [Dyno Impact](screenshots/dyno-impact.jpg) |
 | Counterfactual 6-clip replay | **Evaluated locally** | `scripts/review-recorded-anchors.ts`; raw private media/landmarks remain inside Git-ignored `personal-recordings/` |
 | Live human webcam playthrough | **Pending player session** | Automated suites and counterfactual replays do not substitute for fresh human comfort/completion testing |
 
 ## Campaign results
 
-All twelve shipped demonstrations use `controller: "anchors"`, normal semantic inputs, finite grip capacity/reserve rules, and `match` dual-patch finish targets:
+All twelve shipped demonstrations use `controller: "anchors"`, normal semantic inputs, finite grip capacity/reserve rules, simultaneous two-hand dyno launches on `flight` routes, and `match` dual-patch finish targets:
 
 | Route | Hand-anchor ticks at 120 Hz | Seconds | Fresh replay |
 |---|---:|---:|---|
 | Jug Ladder (`motion-01`) | 211 | 1.76s | Pass |
-| Cross Current (`motion-02`) | 229 | 1.91s | Pass |
+| Cross Current (`motion-02`) | 228 | 1.90s | Pass |
 | Edge Etiquette (`motion-03`) | 230 | 1.92s | Pass |
 | Pendulum Bay (`motion-04`) | 239 | 1.99s | Pass |
 | Soft Landing (`motion-05`) | 230 | 1.92s | Pass |
 | Under the Lip (`motion-06`) | 211 | 1.76s | Pass |
 | Pinch Point (`motion-07`) | 224 | 1.87s | Pass |
-| Quiet Apex (`motion-08`) | 240 | 2.00s | Pass |
+| Quiet Apex (`motion-08`) | 239 | 1.99s | Pass |
 | First Flight (`motion-09`) | 349 | 2.91s | Pass |
-| Catch and Carry (`motion-10`) | 365 | 3.04s | Pass |
-| Crosswind (`motion-11`) | 575 | 4.79s | Pass |
-| Campus Circuit (`motion-12`) | 441 | 3.68s | Pass |
+| Catch and Carry (`motion-10`) | 369 | 3.08s | Pass |
+| Crosswind (`motion-11`) | 573 | 4.78s | Pass |
+| Campus Circuit (`motion-12`) | 471 | 3.93s | Pass |
 
 Pilot solutions run faster than human tempo and establish mechanical feasibility and replay determinism rather than human webcam difficulty. Watching demonstrations never awards route progress.
 
@@ -71,14 +71,14 @@ Replaying all 6 preserved local sessions (`261.1 s` total, `151.5 s` active play
 
 Executed locally against `http://127.0.0.1:4318` (`npm run web:check`), under an ephemeral `/crux-motion/` subpath (`node scripts/validate-web.mjs`), and live over HTTPS against `https://superjay0208.github.io/crux-motion/` and `https://superjay0208.github.io/` in Microsoft Edge (`Edg/157.0.0.0`):
 
-- **120 Hz simulation benchmark ([perf-benchmark.json](perf-benchmark.json)):** `72,000` steps (`600 s` simulated across `AnchorRig` + `Rig`) completed in **`1,623.5 ms` wall (`369.6×` realtime)**; combined **`mean = 0.02223 ms`**, `p50 = 0.0208 ms`, **`p95 = 0.0316 ms`** (`AnchorRig` `p95 = 0.0282 ms`, `Rig` `p95 = 0.0356 ms`), `p99 = 0.0456 ms`, `heapDelta = 24.29 MB`.
-- **Live HTTPS load & lazy asset budget ([web-live-perf.json](web-live-perf.json), [live-crux-motion.jpg](screenshots/live-crux-motion.jpg)):** `5` initial requests totaling **`153,071 bytes` (`149.5 KB` compressed)**, `domContentLoadedMs = 349 ms`, `loadEventMs = 472.1 ms`, `"Display"` font verified, and **`0` `.task`/`.wasm` camera model assets fetched on landing** (lazy-loaded strictly for Camera mode and `/diagnostics.html`).
+- **120 Hz simulation benchmark ([perf-benchmark.json](perf-benchmark.json)):** `72,000` steps (`600 s` simulated across `AnchorRig` + `Rig`) completed in **`1,673.5 ms` wall (`358.5×` realtime)**; combined **`mean = 0.02293 ms`**, `p50 = 0.0213 ms`, **`p95 = 0.0318 ms`** (`AnchorRig` `p95 = 0.0296 ms`, `Rig` `p95 = 0.0343 ms`), `p99 = 0.0455 ms`, `heapDelta = 26.08 MB`.
+- **Live HTTPS load & lazy asset budget ([web-live-perf.json](web-live-perf.json), [live-crux-motion.jpg](screenshots/live-crux-motion.jpg)):** `5–6` initial requests (~`150–158 KB` compressed on live HTTPS), `"Display"` font verified, and **`0` `.task`/`.wasm` camera model assets fetched on landing** (lazy-loaded strictly for Camera mode and `/diagnostics.html`).
 - **Continuous 180-frame simulation + Canvas 2D frame-time gate:**
   - **Live GitHub Pages (`https://superjay0208.github.io/crux-motion/`):** Intro Showcase **`161.97 FPS`** (`frameDeltaP50 = 6.1 ms`, `frameDeltaP95 = 6.2 ms`, **`frameWorkMean = 0.73 ms`**, `frameWorkP95 = 1.1 ms`, `0` long tasks); Practice Climb **`164.38 FPS`** (`frameDeltaP50 = 6.1 ms`, `frameDeltaP95 = 6.1 ms`, **`frameWorkMean = 0.93 ms`**, `frameWorkP95 = 1.3 ms`, `0` long tasks).
-  - **Local `/crux-motion/` subpath ([web-subpath-perf.json](web-subpath-perf.json)):** `domContentLoadedMs = 78.9 ms`, `fcpMs = 320 ms`; Intro Showcase **`153.19 FPS`** (`frameWorkMean = 0.73 ms`, `frameWorkP95 = 1.0 ms`, `0` long tasks); Practice Climb **`164.38 FPS`** (`frameWorkMean = 0.96 ms`, `frameWorkP95 = 1.2 ms`, `0` long tasks).
+  - **Local `/crux-motion/` subpath ([web-subpath-perf.json](web-subpath-perf.json)):** `domContentLoadedMs = 79.2 ms`, `loadEventMs = 87 ms`; Intro Showcase **`59.06 FPS`** vsync (`frameWorkMean = 0.83 ms`, `frameWorkP95 = 1.3 ms`, `0` long tasks); Practice Climb **`59.67 FPS`** vsync (`frameWorkMean = 1.14 ms`, `frameWorkP95 = 1.6 ms`, `0` long tasks).
 - **Zero runtime/network anomalies:** zero `pageerror` events, zero `console.error` messages, zero HTTP 4xx/5xx responses, and zero third-party/external requests across both local loopback and live `superjay0208.github.io`.
-- **Offline & live HTTPS GPU worker inference (`/diagnostics.html`):** both `paired` (`PoseLandmarker` + `HandLandmarker`) and `holistic` (`HolisticLandmarker`) initialized with **`delegate: "GPU"`** and completed 5 blank frames (`paired` steady-state **`17.55 ms`** live / `18.27 ms` local; `holistic` steady-state **`9.40 ms`** live / `10.25 ms` local; [model-smoke.json](model-smoke.json)). Blank-frame GPU timings verify WebGL/WASM worker execution, not live webcam person-tracking throughput.
-- **Visual, responsive & live portfolio verification:** responsive bounds passed at `1280×720` (DPR `1` and `1.25`) and `1024×640` (DPR `1`). Inspected screenshots confirm crisp display typography ([landing-desktop.jpg](screenshots/landing-desktop.jpg), [live-crux-motion.jpg](screenshots/live-crux-motion.jpg)), sculpted faceted/domed holds ([grip-lab-desktop.jpg](screenshots/grip-lab-desktop.jpg)), unobstructed practice HUD and aim reticles ([game-desktop.jpg](screenshots/game-desktop.jpg)), crossed-arm depth sorting + coral `· straining!` warnings ([cross-current-beta.jpg](screenshots/cross-current-beta.jpg)), and live 3-card portfolio alignment + click-through on `https://superjay0208.github.io/` ([portfolio-live.jpg](screenshots/portfolio-live.jpg)).
+- **Offline & live HTTPS GPU worker inference (`/diagnostics.html`):** both `paired` (`PoseLandmarker` + `HandLandmarker`) and `holistic` (`HolisticLandmarker`) initialized with **`delegate: "GPU"`** and completed 5 blank frames (`paired` steady-state **`17.55 ms`** live / `15.83 ms` local; `holistic` steady-state **`9.40 ms`** live / `9.60 ms` local; [model-smoke.json](model-smoke.json)). Blank-frame GPU timings verify WebGL/WASM worker execution, not live webcam person-tracking throughput.
+- **Visual, responsive, dyno impact & live portfolio verification:** responsive bounds passed at `1280×720` (DPR `1` and `1.25`) and `1024×640` (DPR `1`). Inspected screenshots confirm crisp display typography ([landing-desktop.jpg](screenshots/landing-desktop.jpg), [live-crux-motion.jpg](screenshots/live-crux-motion.jpg)), sculpted faceted/domed holds ([grip-lab-desktop.jpg](screenshots/grip-lab-desktop.jpg)), unobstructed practice HUD, `#release-both`, and live dyno charge meter ([game-desktop.jpg](screenshots/game-desktop.jpg)), crossed-arm depth sorting + coral `· straining!` warnings ([cross-current-beta.jpg](screenshots/cross-current-beta.jpg)), simultaneous two-hand dyno impact shockwaves + radial speed lines + centered `DYNO CAUGHT!` / `DYNO LAUNCH!` callouts ([dyno-impact.jpg](screenshots/dyno-impact.jpg)), and live 3-card portfolio alignment + click-through on `https://superjay0208.github.io/` ([portfolio-live.jpg](screenshots/portfolio-live.jpg)).
 
 ## Sources and local data
 

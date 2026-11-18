@@ -481,4 +481,253 @@ describe("ported hand-anchor locomotion", () => {
     for (let t = 0; t < 15; t++) scoopSim.step();
     expect(scoopSim.contacts.right?.hold.id).toBe("move-1");
   });
+  it("rejects single-hand or staggered (>20 tick) releases from triggering dynoLaunch or flew", () => {
+    const s = new Simulation(routes[8], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    for (let t = 0; t < 50; t++) {
+      for (const side of hands) input[side].target.y = 0.68;
+      s.setInput(input);
+      s.step();
+    }
+    for (let t = 0; t < 16; t++) {
+      for (const side of hands) input[side].target.y = 0.18;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    // Release left first, then wait 24 ticks (> 20 ticks) before releasing right.
+    input.left.grip = "release";
+    input.left.ready = false;
+    s.setInput(input);
+    for (let t = 0; t < 24; t++) s.step();
+    expect(s.dynoLaunch).toBe(false);
+    input.right.grip = "release";
+    input.right.ready = false;
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(false);
+    expect(s.lastCause).toBe("Release both hands at the same time to dyno");
+    expect(
+      s.events.some((e) => e.kind === "launch" && e.impact === "launch"),
+    ).toBe(false);
+    const landing = s.route.holds.find((h) => h.id === "move-0")!;
+    // Even if teleported onto landing after >=0.08s of flight, staggered launch must not count as flew.
+    for (let t = 0; t < 16; t++) s.step();
+    s.rig.torso.setPosition(v(landing.p.x, landing.p.y - 0.65));
+    s.rig.legs.setPosition(v(landing.p.x, landing.p.y - 1.4));
+    input.left.target = sub(v(landing.p.x - 0.08, landing.p.y), s.rig.shoulder("left"));
+    input.left.grip = "jug";
+    input.left.ready = true;
+    s.setInput(input);
+    for (let t = 0; t < 5 && !s.contacts.left; t++) s.step();
+    expect(s.contacts.left?.hold.id).toBe("move-0");
+    expect(s.flew).toBe(false);
+  });
+  it("keeps dynoReady, dynoLaunch, and flew false on a stationary dead-hang simultaneous release", () => {
+    const custom = structuredClone(routes[8]);
+    custom.holds.push({
+      id: "drop-catch",
+      p: v(0, 0.55),
+      kind: "jug",
+      direction: v(0, 1),
+      radius: 0.22,
+      match: true,
+    });
+    const s = new Simulation(custom, "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    // Build charge briefly, then stay stationary for >17 ticks so charge decays strictly to 0.
+    for (let t = 0; t < 40; t++) {
+      for (const side of hands) input[side].target.y = 0.66;
+      s.setInput(input);
+      s.step();
+    }
+    for (let t = 0; t < 14; t++) {
+      for (const side of hands) input[side].target.y = 0.2;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    for (let t = 0; t < 34; t++) s.step();
+    expect(s.dynoCharge).toBe(0);
+    expect(s.dynoReady).toBe(false);
+    expect(s.dynoSource).toBe("none");
+
+    // Simultaneous release from stationary dead-hang.
+    for (const side of hands) {
+      input[side].grip = "release";
+      input[side].ready = false;
+    }
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(false);
+    expect(s.rig.velocity().y).toBeLessThanOrEqual(0.05);
+    expect(s.lastCause).toBe(
+      "Build swing or push-up momentum before releasing both hands",
+    );
+    const dropHold = s.route.holds.find((h) => h.id === "drop-catch")!;
+    for (let t = 0; t < 45 && !s.contacts.left; t++) {
+      if (t >= 15) {
+        input.left.target = sub(
+          v(dropHold.p.x - 0.08, dropHold.p.y),
+          s.rig.shoulder("left"),
+        );
+        input.left.grip = "jug";
+        input.left.ready = true;
+      }
+      input.right.target = v(0.18, 0.05);
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.contacts.left?.hold.id).toBe("drop-catch");
+    expect(s.resting("right")).toBe(true);
+    expect(s.flew).toBe(false);
+  });
+  it("triggers push dynoSource, dynoLaunch, launch impact, and flew on a push-up simultaneous two-hand dyno", () => {
+    const s = new Simulation(routes[8], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands)
+      input[side].target = sub(s.rig.hand(side), s.rig.shoulder(side));
+    s.setInput(input);
+    s.start();
+    for (let t = 0; t < 60; t++) {
+      for (const side of hands) input[side].target.y = 0.68;
+      s.setInput(input);
+      s.step();
+    }
+    for (let t = 0; t < 18; t++) {
+      for (const side of hands) input[side].target.y = 0.16;
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    expect(s.dynoCharge).toBe(1);
+    expect(s.dynoSource).toBe("push");
+    expect(s.dynoVector.y).toBeGreaterThan(1.4);
+
+    // Stagger left/right release by 6 ticks (<= 16-tick simultaneous gate).
+    input.left.grip = "release";
+    input.left.ready = false;
+    s.setInput(input);
+    for (let t = 0; t < 6; t++) s.step();
+    expect(s.dynoReady).toBe(true);
+    input.right.grip = "release";
+    input.right.ready = false;
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(true);
+    expect(s.dynoSource).toBe("push");
+    const launchEvt = s.events.find((e) => e.kind === "launch");
+    expect(launchEvt?.message).toBe("Dyno launch!");
+    expect(launchEvt?.impact).toBe("launch");
+
+    const landing = s.route.holds.find((h) => h.id === "move-0")!;
+    for (let t = 0; t < 90 && !(s.contacts.left && s.contacts.right); t++) {
+      for (const side of hands) {
+        input[side].target = sub(
+          v(landing.p.x + (side === "left" ? -0.08 : 0.08), landing.p.y),
+          s.rig.shoulder(side),
+        );
+        input[side].grip = t < 14 ? "release" : "jug";
+        input[side].ready = t >= 14;
+      }
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.contacts.left?.hold.id).toBe("move-0");
+    expect(s.contacts.right?.hold.id).toBe("move-0");
+    expect(s.flew).toBe(true);
+    expect(s.dynoLaunch).toBe(false);
+    expect(
+      s.events.some(
+        (e) =>
+          e.kind === "catch" && (e.impact === "dyno" || e.impact === "apex"),
+      ),
+    ).toBe(true);
+  });
+  it("converts lateral swing + simultaneous release into upward-and-across flight and whips passive legs on catch", () => {
+    const s = new Simulation(routes[3], "camera");
+    s.fatigue = false;
+    const input = structuredClone(s.input);
+    for (const side of hands) {
+      input[side].target = v(side === "left" ? -0.13 : 0.13, 0.48);
+    }
+    s.setInput(input);
+    s.start();
+    for (let t = 0; t < 45; t++) s.step();
+    // Backswing body right by sweeping hands left at constant y, then briskly sweep hands right to swing body left.
+    for (let t = 0; t < 24; t++) {
+      const shift = -0.26 * ((t + 1) / 24);
+      input.left.target = v(-0.13 + shift, 0.48);
+      input.right.target = v(0.13 + shift, 0.48);
+      s.setInput(input);
+      s.step();
+    }
+    for (let t = 0; t < 18; t++) {
+      const shift = -0.26 + 0.56 * ((t + 1) / 18);
+      input.left.target = v(-0.13 + shift, 0.48);
+      input.right.target = v(0.13 + shift, 0.48);
+      s.setInput(input);
+      s.step();
+    }
+    expect(s.dynoReady).toBe(true);
+    expect(s.dynoSource).toBe("swing");
+    expect(s.dynoVector.x).toBeLessThan(-0.9);
+    expect(s.dynoVector.y).toBeGreaterThan(0.8);
+
+    for (const side of hands) {
+      input[side].grip = "release";
+      input[side].ready = false;
+    }
+    s.setInput(input);
+    s.step();
+    expect(s.dynoLaunch).toBe(true);
+    expect(s.dynoSource).toBe("swing");
+    const v0 = { ...s.rig.velocity() };
+    expect(v0.x).toBeLessThan(-0.9);
+    expect(v0.y).toBeGreaterThan(0.8);
+
+    // Pure ballistic flight before catch (-9.81 m/s^2 vertical, 0 horizontal acceleration).
+    for (let t = 0; t < 12; t++) s.step();
+    expect(s.rig.velocity().x).toBeCloseTo(v0.x, 4);
+    expect(s.rig.velocity().y).toBeCloseTo(v0.y - 9.81 * (12 / 120), 3);
+
+    const target = s.route.holds.find((h) => h.id === "move-0")!;
+    let catchLegOmega = 0,
+      maxLegWhip = 0;
+    for (let t = 0; t < 45; t++) {
+      if (!s.contacts.left) {
+        input.left.target = sub(target.p, s.rig.shoulder("left"));
+        input.left.grip = "jug";
+        input.left.ready = true;
+        s.setInput(input);
+      }
+      const hadCatch = !!s.contacts.left;
+      s.step();
+      if (!hadCatch && s.contacts.left) {
+        catchLegOmega = Math.abs(s.rig.legs.getAngularVelocity());
+      }
+      if (s.contacts.left) {
+        maxLegWhip = Math.max(
+          maxLegWhip,
+          Math.abs(s.rig.legs.getAngle() - s.rig.torso.getAngle()),
+        );
+      }
+      expect(Math.abs(s.rig.torso.getAngle())).toBeLessThanOrEqual(0.2);
+    }
+    expect(s.contacts.left?.hold.id).toBe("move-0");
+    expect(s.flew).toBe(true);
+    expect(catchLegOmega).toBeGreaterThan(0.8);
+    expect(maxLegWhip).toBeGreaterThan(0.1);
+  });
 });

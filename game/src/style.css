@@ -1302,3 +1302,203 @@ dialog .secondary {
 .pill-badge.strain-warn {
   background: #ff89661c;
 }
+.motion-feedback {
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    box-shadow 0.18s;
+}
+.motion-feedback.dyno-ready {
+  border-color: #ffd98ec4;
+  background: linear-gradient(
+    135deg,
+    rgba(156, 231, 200, 0.12),
+    rgba(255, 217, 142, 0.14)
+  );
+  box-shadow:
+    0 0 18px rgba(156, 231, 200, 0.2),
+    inset 0 0 12px rgba(255, 217, 142, 0.08);
+}
+.motion-feedback.dyno-ready > span {
+  color: #ffe2a4;
+  font-weight: 700;
+}
+.motion-feedback.dyno-ready > strong {
+  color: #ffd98e;
+}
+.motion-feedback.dyno-ready .meter i {
+  background: linear-gradient(90deg, var(--mint), #ffd98e);
+}
+.motion-feedback.dyno-ready p {
+  color: #edf5ee;
+}
+.dyno-source-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  margin-left: 6px;
+  border-radius: 999px;
+  border: 1px solid #9ce7c85c;
+  background: #9ce7c818;
+  color: var(--mint);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.dyno-source-tag:empty {
+  display: none;
+}
+.dyno-source-tag[data-source="swing"],
+.dyno-source-tag.swing {
+  border-color: #efb37385;
+  background: #efb3731f;
+  color: #ffd7a3;
+}
+.dyno-source-tag[data-source="push"],
+.dyno-source-tag.push,
+.motion-feedback.dyno-ready .dyno-source-tag {
+  border-color: #ffd98e96;
+  background: #ffd98e24;
+  color: #ffe6ad;
+}
+.dual-release-button {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 11px;
+  border: 1px solid #9ce7c842;
+  border-radius: 4px;
+  background: #9ce7c80c;
+  color: #d6ece1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s,
+    color 0.16s;
+}
+.dual-release-button span {
+  font-size: 9px;
+  font-weight: 500;
+  color: #93b6a6;
+}
+.dual-release-button:hover {
+  background: #9ce7c81a;
+  border-color: #9ce7c888;
+  color: #eefaf3;
+}
+.dual-release-button.dyno-ready,
+.dual-release-button[data-ready="true"] {
+  border-color: #ffd98ed4;
+  background: linear-gradient(
+    135deg,
+    rgba(156, 231, 200, 0.16),
+    rgba(255, 217, 142, 0.18)
+  );
+  color: #fff2cf;
+  box-shadow: 0 0 15px rgba(255, 217, 142, 0.2);
+}
+.dual-release-button.dyno-ready span,
+.dual-release-button[data-ready="true"] span {
+  color: #ffe2a4;
+}
+@keyframes dynoReadyPulse {
+  0%,
+  100% {
+    border-color: #9ce7c8b8;
+    box-shadow:
+      0 0 12px rgba(156, 231, 200, 0.16),
+      inset 0 0 8px rgba(255, 217, 142, 0.06);
+  }
+  50% {
+    border-color: #ffd98ef0;
+    box-shadow:
+      0 0 22px rgba(255, 217, 142, 0.3),
+      inset 0 0 14px rgba(156, 231, 200, 0.12);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .motion-feedback.dyno-ready,
+  .dual-release-button.dyno-ready,
+  .dual-release-button[data-ready="true"] {
+    animation: dynoReadyPulse 1.35s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-feedback.dyno-ready,
+  .dual-release-button.dyno-ready,
+  .dual-release-button[data-ready="true"] {
+    animation: none !important;
+  }
+}
+@media (min-width: 701px) and (max-height: 780px) {
+  .panel-subtitle {
+    margin-bottom: 7px;
+  }
+  .coach-card {
+    margin-top: 7px;
+    padding: 7px 11px 6px;
+  }
+  .coach-card p {
+    font-size: 11.5px;
+    line-height: 1.4;
+    margin: 4px 0 0;
+  }
+  .hand-cards {
+    margin-top: 7px;
+  }
+  .hand-card {
+    padding: 7px 9px;
+  }
+  .hand-card strong {
+    font-size: 15px;
+    margin: 3px 0;
+  }
+  .hand-card .gesture-cue {
+    min-height: 16px;
+    margin: 1px 0 4px;
+  }
+  .grip-selector {
+    margin-top: 7px;
+  }
+  .grip-option {
+    padding: 5px 0;
+  }
+  .release-button {
+    padding: 5px 0;
+  }
+  .motion-feedback {
+    padding: 6px 10px;
+    margin: 5px 0;
+  }
+  .motion-feedback .meter {
+    margin-top: 5px;
+  }
+  .motion-feedback p {
+    margin-top: 4px;
+    font-size: 9.5px;
+    line-height: 1.35;
+  }
+  .dual-release-button {
+    margin: 2px 0;
+    padding: 5px 9px;
+  }
+  .session-tools {
+    margin-top: 4px;
+    padding-top: 7px;
+  }
+  .controls-note {
+    margin: 5px 0 3px;
+    padding-bottom: 4px;
+    line-height: 1.4;
+  }
+}

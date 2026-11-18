@@ -52,6 +52,7 @@ export type EventKind =
   | "finish"
   | "fall"
   | "checkpoint";
+export type ImpactKind = "launch" | "dyno" | "apex" | "finish";
 export type SimEvent = {
   id: number;
   tick: number;
@@ -60,6 +61,7 @@ export type SimEvent = {
   hand?: Hand;
   power: number;
   message: string;
+  impact?: ImpactKind;
 };
 export type Replay = {
   version: 1;

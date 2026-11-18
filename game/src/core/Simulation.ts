@@ -89,6 +89,12 @@ export class Simulation {
   longestFlight = 0;
   finishDwell = 0;
   catchCount = 0;
+  apexCatchCount = 0;
+  dynoCharge = 0;
+  dynoReady = false;
+  dynoSource: "none" | "push" | "swing" = "none";
+  dynoVector: V = v();
+  dynoLaunch = false;
   fatigue = true;
   motors = true;
   assisted = false;
@@ -102,6 +108,18 @@ export class Simulation {
   private slippedHold: Partial<Record<Hand, string>> = {};
   private armFrameTick = { left: 0, right: 0 };
   private intentionalFlight = true;
+  private lastDualSupportTick = 0;
+  private intentionalReleaseTick: Record<Hand, number> = {
+    left: -999,
+    right: -999,
+  };
+  private dynoCatchWindow = 0;
+  private dynoLaunchPower = 1;
+  private readonly scoreRing = new Float64Array(17);
+  private readonly vecXRing = new Float64Array(17);
+  private readonly vecYRing = new Float64Array(17);
+  private readonly sourceRing = new Uint8Array(17);
+  private chargeHead = 0;
   constructor(
     public route: Route,
     readonly mode = "practice",
@@ -119,7 +137,14 @@ export class Simulation {
     }
     this.events = [];
   }
-  emit(kind: SimEvent["kind"], p: V, message: string, hand?: Hand, power = 1) {
+  emit(
+    kind: SimEvent["kind"],
+    p: V,
+    message: string,
+    hand?: Hand,
+    power = 1,
+    impact?: SimEvent["impact"],
+  ) {
     this.events.push({
       id: ++this.serial,
       tick: this.tick,
@@ -128,8 +153,27 @@ export class Simulation {
       hand,
       power,
       message,
+      ...(impact ? { impact } : {}),
     });
     if (this.events.length > 128) this.events.shift();
+  }
+  resting(side: Hand): boolean {
+    return (
+      !this.contacts[side] &&
+      this.input[side].target.y < 0.2 &&
+      (!!this.contacts.left || !!this.contacts.right)
+    );
+  }
+  private clearDynoWindow(keepSource = false) {
+    this.scoreRing.fill(0);
+    this.vecXRing.fill(0);
+    this.vecYRing.fill(0);
+    this.sourceRing.fill(0);
+    this.chargeHead = 0;
+    this.dynoCharge = 0;
+    this.dynoReady = false;
+    this.dynoVector = v();
+    if (!keepSource) this.dynoSource = "none";
   }
   setInput(input: Inputs) {
     for (const side of hands)
@@ -152,22 +196,56 @@ export class Simulation {
   release(side: Hand, cause = "Released", slip = false) {
     const c = this.contacts[side];
     if (!c) return;
-    if (!slip) this.openedHold[side] = c.hold.id;
-    else if (this.rig instanceof AnchorRig) this.slippedHold[side] = c.hold.id;
+    if (!slip) {
+      this.openedHold[side] = c.hold.id;
+      this.intentionalReleaseTick[side] = this.tick;
+    } else {
+      this.intentionalReleaseTick[side] = -999;
+      if (this.rig instanceof AnchorRig) this.slippedHold[side] = c.hold.id;
+    }
     this.recentReleases.push({ id: c.hold.id, tick: this.tick });
     this.recentReleases = this.recentReleases.filter(
       (r) => this.tick - r.tick < 30,
     );
     if (!(this.rig instanceof AnchorRig)) this.world.destroyJoint(c.joint);
     this.contacts[side] = null;
+    let flightHint = "";
     if (!this.contacts.left && !this.contacts.right) {
       this.launchHolds = new Set(this.recentReleases.map((r) => r.id));
       this.intentionalFlight = !slip;
+      this.dynoCatchWindow = 0;
+      const simultaneous =
+        !slip &&
+        this.tick - this.lastDualSupportTick <= 16 &&
+        Math.abs(
+          this.intentionalReleaseTick.left - this.intentionalReleaseTick.right,
+        ) <= 16;
+      const charged = this.dynoCharge >= 1;
+      const launchVec = { ...this.dynoVector };
+      const launchSource = this.dynoSource;
       if (this.rig instanceof AnchorRig) this.rig.releaseLast(!slip);
+      if (simultaneous && charged) {
+        this.dynoLaunch = true;
+        this.dynoSource = launchSource;
+        this.dynoLaunchPower = clamp(len(launchVec), 1, 3.5);
+        if (this.rig instanceof AnchorRig) {
+          this.rig.applyLaunchVelocity(launchVec);
+        }
+        this.clearDynoWindow(true);
+      } else {
+        this.dynoLaunch = false;
+        this.dynoLaunchPower = 1;
+        this.clearDynoWindow(false);
+        if (this.route.goal === "flight" && !slip) {
+          flightHint = !simultaneous
+            ? "Release both hands at the same time to dyno"
+            : "Build swing or push-up momentum before releasing both hands";
+        }
+      }
     }
     this.cooldown[side] = 0.12;
     this.emit(slip ? "slip" : "release", this.rig.hand(side), cause, side);
-    this.lastCause = cause;
+    this.lastCause = flightHint || cause;
   }
   strain(side: Hand): number {
     const c = this.contacts[side];
@@ -191,6 +269,15 @@ export class Simulation {
     if (this.contacts[side]) return;
     const other = this.contacts[side === "left" ? "right" : "left"];
     if (other?.hold.id === hold.id && !hold.match) return;
+    this.intentionalReleaseTick[side] = -999;
+    const preVel = start ? v() : this.rig.velocity();
+    const dyno =
+      !start &&
+      this.dynoLaunch &&
+      (this.flight >= 0.08 || this.dynoCatchWindow > 0) &&
+      !this.route.start.includes(hold.id) &&
+      !this.launchHolds.has(hold.id);
+    const apex = dyno && Math.abs(preVel.y) < 0.95;
     const joint = new GripConstraint(
       this.ground,
       this.rig.arms[side].hand,
@@ -201,7 +288,7 @@ export class Simulation {
       hold,
       anchor: { ...anchor },
       joint,
-      age: start ? 1 : 0,
+      age: start ? 1 : apex ? 0.03 : 0,
       drift: 0,
       wrong: 0,
       load: 0,
@@ -213,23 +300,48 @@ export class Simulation {
       this.catchCount++;
       if (hold.checkpoint || hold.finish) this.visited.add(hold.id);
       if (hold.direction.y < -0.5) this.undercling = true;
-      const dyno =
-        this.intentionalFlight &&
-        this.flight >= 0.08 &&
-        !this.route.start.includes(hold.id) &&
-        !this.launchHolds.has(hold.id);
-      const speed = len(this.rig.velocity());
-      const message = dyno
-        ? speed < 2.2
-          ? "Clean dyno catch"
-          : "Dyno caught"
-        : speed < 0.55 && dist(anchor, hold.p) <= hold.radius * 0.65
-          ? "Clean catch"
-          : "Secure catch";
-      this.emit("catch", anchor, message, side, clamp(speed / 2, 0.35, 2));
+      if (this.rig instanceof AnchorRig) this.rig.onCatch(preVel);
+      const speed = len(preVel);
+      if (apex) {
+        this.apexCatchCount++;
+        this.emit(
+          "catch",
+          anchor,
+          "Apex dyno catch",
+          side,
+          clamp(speed / 1.5, 1.15, 2),
+          "apex",
+        );
+      } else if (dyno) {
+        this.emit(
+          "catch",
+          anchor,
+          "Dyno caught",
+          side,
+          clamp(speed / 1.6, 1.05, 2),
+          "dyno",
+        );
+      } else {
+        const message =
+          speed < 0.55 && dist(anchor, hold.p) <= hold.radius * 0.65
+            ? "Clean catch"
+            : "Secure catch";
+        this.emit("catch", anchor, message, side, clamp(speed / 2, 0.35, 2));
+      }
       if (dyno) {
         this.flew = true;
         this.longestFlight = Math.max(this.longestFlight, this.flight);
+        if (other) {
+          this.dynoCatchWindow = 0;
+          this.dynoLaunch = false;
+          this.dynoSource = "none";
+        } else {
+          this.dynoCatchWindow = 0.18;
+        }
+      } else {
+        this.dynoCatchWindow = 0;
+        this.dynoLaunch = false;
+        if (this.dynoCharge === 0) this.dynoSource = "none";
       }
       this.flight = 0;
     }
@@ -351,6 +463,109 @@ export class Simulation {
       return;
     }
   }
+  private updateDynoMomentum(anchored: AnchorRig | null) {
+    if (this.contacts.left && this.contacts.right) {
+      this.lastDualSupportTick = this.tick;
+      const instVel = this.rig.velocity();
+      const sampleVel = anchored ? anchored.recentLaunchVelocity : instVel;
+      const stationary = instVel.y < 0.12 && Math.abs(instVel.x) < 0.15;
+      let score = 0,
+        candX = 0,
+        candY = 0,
+        src = 0;
+      if (!stationary) {
+        const vx = anchored
+          ? instVel.x * sampleVel.x > 0
+            ? Math.sign(instVel.x) *
+              Math.min(Math.abs(instVel.x), Math.abs(sampleVel.x))
+            : 0
+          : instVel.x;
+        const vy = anchored
+          ? instVel.y > 0 && sampleVel.y > 0
+            ? Math.min(instVel.y, sampleVel.y)
+            : 0
+          : instVel.y;
+        if (Math.abs(instVel.x) > 0.2) {
+          for (let i = 0; i < 17; i++)
+            if (this.vecXRing[i] * instVel.x < -0.01) {
+              this.scoreRing[i] = 0;
+              this.vecXRing[i] = 0;
+              this.vecYRing[i] = 0;
+              this.sourceRing[i] = 0;
+            }
+        }
+        if (instVel.y < -0.25) {
+          for (let i = 0; i < 17; i++)
+            if (this.sourceRing[i] === 1) {
+              this.scoreRing[i] = 0;
+              this.vecXRing[i] = 0;
+              this.vecYRing[i] = 0;
+              this.sourceRing[i] = 0;
+            }
+        }
+        const pushScore = vy > 0.12 ? vy / 0.48 : 0;
+        const swingScore = Math.abs(vx) > 0.15 ? Math.abs(vx) / 0.5 : 0;
+        score = Math.max(pushScore, swingScore);
+        if (swingScore >= pushScore && Math.abs(vx) >= 0.45) {
+          src = 2;
+          candX = clamp(vx * 1.08, -3.6, 3.6);
+          candY = Math.max(
+            vy,
+            Math.min(2.6, Math.abs(vx) * 0.88 + Math.max(0, vy) * 0.5),
+          );
+        } else if (pushScore > swingScore && vy >= 0.45) {
+          src = 1;
+          candX = clamp(vx, -3.6, 3.6);
+          candY = clamp(vy * 1.12, 0, 3.8);
+        } else if (score > 0) {
+          src = swingScore >= pushScore ? 2 : 1;
+          candX = clamp(vx, -3.6, 3.6);
+          candY = Math.max(0, vy);
+        }
+        const sp = Math.hypot(candX, candY);
+        if (sp > 4.2) {
+          candX = (candX * 4.2) / sp;
+          candY = (candY * 4.2) / sp;
+        }
+      }
+      const idx = this.chargeHead;
+      this.scoreRing[idx] = score;
+      this.vecXRing[idx] = candX;
+      this.vecYRing[idx] = candY;
+      this.sourceRing[idx] = src;
+      this.chargeHead = (idx + 1) % 17;
+
+      let bestScore = 0,
+        bestX = 0,
+        bestY = 0,
+        bestSrc = 0;
+      for (let k = 0; k < 17; k++) {
+        const i = (this.chargeHead + k) % 17;
+        const s = this.scoreRing[i];
+        if (s > 0 && s >= bestScore) {
+          bestScore = s;
+          bestX = this.vecXRing[i];
+          bestY = this.vecYRing[i];
+          bestSrc = this.sourceRing[i];
+        }
+      }
+      this.dynoCharge = clamp(bestScore, 0, 1);
+      this.dynoReady = this.dynoCharge >= 1;
+      this.dynoVector = bestScore > 0 ? v(bestX, bestY) : v();
+      this.dynoSource =
+        bestSrc === 2 ? "swing" : bestSrc === 1 ? "push" : "none";
+      return;
+    }
+    if (this.contacts.left || this.contacts.right) {
+      if (this.tick - this.lastDualSupportTick <= 16) {
+        this.dynoReady = this.dynoCharge >= 1;
+      } else {
+        this.clearDynoWindow(this.dynoLaunch);
+      }
+      return;
+    }
+    this.clearDynoWindow(this.dynoLaunch);
+  }
   step() {
     if (this.state !== "playing") return;
     if (!this.lastInput || !inputsEqual(this.input, this.lastInput)) {
@@ -360,6 +575,16 @@ export class Simulation {
     }
     this.tick++;
     this.time += this.dt;
+    if (this.dynoCatchWindow > 0) {
+      this.dynoCatchWindow = Math.max(0, this.dynoCatchWindow - this.dt);
+      if (
+        this.dynoCatchWindow === 0 &&
+        (this.contacts.left || this.contacts.right)
+      ) {
+        this.dynoLaunch = false;
+        if (this.dynoCharge === 0) this.dynoSource = "none";
+      }
+    }
     for (const side of hands) {
       this.cooldown[side] = Math.max(0, this.cooldown[side] - this.dt);
       if (this.input[side].quality && this.input[side].grip === "release") {
@@ -544,16 +769,29 @@ export class Simulation {
     }
     if (this.fatigue)
       this.energy = clamp(this.energy - 0.002 * this.dt - work / 120000, 0, 1);
+    this.updateDynoMomentum(anchored);
     const count = hands.filter((s) => this.contacts[s]).length;
     if (!count) {
-      if (!this.flight)
-        this.emit(
-          "launch",
-          this.rig.com(),
-          "In flight",
-          undefined,
-          len(this.rig.velocity()),
-        );
+      if (!this.flight) {
+        if (this.dynoLaunch) {
+          this.emit(
+            "launch",
+            this.rig.com(),
+            "Dyno launch!",
+            undefined,
+            this.dynoLaunchPower,
+            "launch",
+          );
+        } else {
+          this.emit(
+            "launch",
+            this.rig.com(),
+            "In flight",
+            undefined,
+            len(this.rig.velocity()),
+          );
+        }
+      }
       this.flight += this.dt;
     } else if (this.flight > 0) this.flight = 0;
     if (this.rig.hand("left").x > this.rig.hand("right").x + 0.12 && count > 0)
@@ -577,7 +815,14 @@ export class Simulation {
       this.finishDwell += this.dt;
       if (this.finishDwell >= 0.35) {
         this.state = "finished";
-        this.emit("finish", this.rig.com(), "Route complete");
+        this.emit(
+          "finish",
+          this.rig.com(),
+          "Route complete",
+          undefined,
+          1,
+          "finish",
+        );
       }
     } else this.finishDwell = 0;
   }

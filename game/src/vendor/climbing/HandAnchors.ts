@@ -46,52 +46,138 @@ export function inverseHandCorrection(supports: HandSupport[]): V {
   return supports.length ? mul(correction, 1 / supports.length) : correction;
 }
 
+const RING_CAPACITY = 64;
+
 export class ReleaseVelocity {
-  private samples: { dt: number; distance: V }[] = [];
+  private readonly dts = new Float64Array(RING_CAPACITY);
+  private readonly xs = new Float64Array(RING_CAPACITY);
+  private readonly ys = new Float64Array(RING_CAPACITY);
+  private head = 0;
+  private count = 0;
+  private totalDuration = 0;
   constructor(readonly windowSeconds = 0.18) {}
   addDistance(dt: number, distance: V) {
     if (dt <= 0 || !Number.isFinite(dt + distance.x + distance.y)) return;
-    this.samples.push({ dt, distance: { ...distance } });
-    let duration = this.samples.reduce((n, s) => n + s.dt, 0);
+    if (this.count === RING_CAPACITY) {
+      this.totalDuration -= this.dts[this.head];
+      this.head = (this.head + 1) % RING_CAPACITY;
+      this.count--;
+    }
+    const idx = (this.head + this.count) % RING_CAPACITY;
+    this.dts[idx] = dt;
+    this.xs[idx] = distance.x;
+    this.ys[idx] = distance.y;
+    this.count++;
+    this.totalDuration += dt;
     while (
-      this.samples.length > 1 &&
-      duration - this.samples[0].dt >= this.windowSeconds
-    )
-      duration -= this.samples.shift()!.dt;
+      this.count > 1 &&
+      this.totalDuration - this.dts[this.head] >= this.windowSeconds
+    ) {
+      this.totalDuration -= this.dts[this.head];
+      this.head = (this.head + 1) % RING_CAPACITY;
+      this.count--;
+    }
   }
   velocity(maxSpeed = 4.2): V {
-    const duration = this.samples.reduce((n, s) => n + s.dt, 0);
-    const distance = this.samples.reduce((n, s) => add(n, s.distance), v());
-    let result = duration > 0 ? mul(distance, 1 / duration) : v();
+    if (this.count === 0) return v();
+    let duration = 0,
+      dx = 0,
+      dy = 0;
+    for (let i = 0; i < this.count; i++) {
+      const idx = (this.head + i) % RING_CAPACITY;
+      duration += this.dts[idx];
+      dx += this.xs[idx];
+      dy += this.ys[idx];
+    }
+    let rx = duration > 0 ? dx / duration : 0,
+      ry = duration > 0 ? dy / duration : 0;
     if (duration >= 0.1) {
       let skip = 0.05,
         earlyDuration = 0,
-        earlyDistance = v();
-      for (let i = this.samples.length - 1; i >= 0; i--) {
-        const s = this.samples[i];
-        if (skip >= s.dt) {
-          skip -= s.dt;
+        ex = 0,
+        ey = 0;
+      for (let i = this.count - 1; i >= 0; i--) {
+        const idx = (this.head + i) % RING_CAPACITY;
+        const sdt = this.dts[idx];
+        if (skip >= sdt) {
+          skip -= sdt;
           continue;
         }
-        const keep = skip > 0 ? (s.dt - skip) / s.dt : 1;
+        const keep = skip > 0 ? (sdt - skip) / sdt : 1;
         skip = 0;
-        earlyDuration += s.dt * keep;
-        earlyDistance = add(earlyDistance, mul(s.distance, keep));
+        earlyDuration += sdt * keep;
+        ex += this.xs[idx] * keep;
+        ey += this.ys[idx] * keep;
       }
       if (earlyDuration >= 0.04) {
-        const early = mul(earlyDistance, 1 / earlyDuration);
+        const eax = ex / earlyDuration,
+          eay = ey / earlyDuration;
         if (
-          early.x * result.x + early.y * result.y > 0 &&
-          len(early) > len(result)
-        )
-          result = early;
+          eax * rx + eay * ry > 0 &&
+          Math.hypot(eax, eay) > Math.hypot(rx, ry)
+        ) {
+          rx = eax;
+          ry = eay;
+        }
       }
     }
-    return len(result) > maxSpeed
-      ? mul(result, maxSpeed / len(result))
-      : result;
+    const speed = Math.hypot(rx, ry);
+    return speed > maxSpeed
+      ? v((rx * maxSpeed) / speed, (ry * maxSpeed) / speed)
+      : v(rx, ry);
+  }
+  recentVelocity(maxSpeed = 4.2): V {
+    if (this.count === 0) return v();
+    const base = this.velocity(maxSpeed);
+    let dur06 = 0,
+      dx06 = 0,
+      dy06 = 0,
+      dur12 = 0,
+      dx12 = 0,
+      dy12 = 0;
+    for (let i = this.count - 1; i >= 0 && dur12 < 0.12; i--) {
+      const idx = (this.head + i) % RING_CAPACITY;
+      const sdt = this.dts[idx],
+        sx = this.xs[idx],
+        sy = this.ys[idx];
+      if (dur06 < 0.06) {
+        const keep06 = Math.min(1, (0.06 - dur06) / sdt);
+        dur06 += sdt * keep06;
+        dx06 += sx * keep06;
+        dy06 += sy * keep06;
+      }
+      const keep12 = Math.min(1, (0.12 - dur12) / sdt);
+      dur12 += sdt * keep12;
+      dx12 += sx * keep12;
+      dy12 += sy * keep12;
+    }
+    const v06x = dur06 > 0 ? dx06 / dur06 : 0,
+      v06y = dur06 > 0 ? dy06 / dur06 : 0;
+    const v12x = dur12 >= 0.04 ? dx12 / dur12 : base.x,
+      v12y = dur12 >= 0.04 ? dy12 / dur12 : base.y;
+    let rx = base.x;
+    if (dur06 >= 0.03 && v06x * base.x < 0 && Math.abs(v06x) > 0.2) {
+      rx =
+        v12x * v06x >= 0 && Math.abs(v12x) >= Math.abs(v06x) ? v12x : v06x;
+    } else if (v12x * v06x >= -0.02 && Math.abs(v12x) > Math.abs(base.x)) {
+      rx = v12x;
+    }
+    let ry = base.y;
+    if (dur06 >= 0.03 && v06y < -0.2) {
+      ry = Math.min(v12y, base.y);
+    } else if (dur06 >= 0.03 && v06y > 0.25 && base.y < 0) {
+      ry = Math.max(v06y, v12y);
+    } else if (v12y > base.y && v06y >= -0.05) {
+      ry = v12y;
+    }
+    const speed = Math.hypot(rx, ry);
+    return speed > maxSpeed
+      ? v((rx * maxSpeed) / speed, (ry * maxSpeed) / speed)
+      : v(rx, ry);
   }
   clear() {
-    this.samples = [];
+    this.head = 0;
+    this.count = 0;
+    this.totalDuration = 0;
   }
 }

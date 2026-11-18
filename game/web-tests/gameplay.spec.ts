@@ -21,6 +21,10 @@ declare global {
       };
       readonly route: number;
       readonly assisted: boolean;
+      readonly dynoCharge: number;
+      readonly dynoReady: boolean;
+      readonly dynoSource: "none" | "push" | "swing";
+      readonly dynoLaunch: boolean;
       readonly delegate: string;
       readonly camera: {
         ready: boolean;
@@ -516,6 +520,137 @@ test("diagnostics worker inference runs both paired and holistic providers offli
       2,
     ) + "\n",
   );
+
+  guards.assertClean();
+});
+
+test("First Flight (motion-09) charges dyno momentum, triggers simultaneous KeyV/#release-both flight, and captures Watch Beta dyno impact frame", async ({
+  page,
+}) => {
+  await mkdir(screenshotsDir, { recursive: true });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const guards = attachRuntimeGuards(page);
+
+  await page.goto("/?route=motion-09");
+  await page.evaluate(() => document.fonts.ready);
+
+  await page.locator("#practice-start").click();
+  expect(await page.evaluate(() => window.cruxMotion.route)).toBe(8);
+  await expect(page.locator("#route-name")).toHaveText("First Flight");
+  await expect(page.locator("#release-both")).toBeVisible();
+  await expect(page.locator(".motion-feedback")).toBeVisible();
+
+  // Switch Practice physics to Hand anchors for full momentum dyno launch
+  await page.locator("#settings-button").click();
+  await page.locator("#practice-physics").selectOption("anchors");
+  await expect(page.locator("#practice-physics")).toHaveValue("anchors");
+  await page.locator("#modal-close").click();
+
+  await page.locator("#resume").click();
+  await expect(page.locator("#game-overlay")).toHaveClass(/hidden/);
+  await page.locator("#wall").focus();
+
+  const initialContacts = await page.evaluate(
+    () => window.cruxMotion.snapshot.contacts,
+  );
+  expect(initialContacts[0]).not.toBeNull();
+  expect(initialContacts[1]).not.toBeNull();
+
+  // Extend downward (KeyS) to cock crouch, then drive upward (KeyW) to build dynoCharge -> dynoReady
+  const extendStartTick = await page.evaluate(
+    () => window.cruxMotion.snapshot.tick,
+  );
+  await page.keyboard.down("KeyS");
+  await expect
+    .poll(() => page.evaluate(() => window.cruxMotion.snapshot.tick))
+    .toBeGreaterThanOrEqual(extendStartTick + 45);
+  await page.keyboard.up("KeyS");
+
+  await page.keyboard.down("KeyW");
+  await expect
+    .poll(
+      async () => {
+        const state = await page.evaluate(() => ({
+          charge: window.cruxMotion.dynoCharge,
+          ready: window.cruxMotion.dynoReady,
+          source: window.cruxMotion.dynoSource,
+        }));
+        return state.charge > 0 && state.ready && state.source !== "none";
+      },
+      { timeout: 5_000 },
+    )
+    .toBe(true);
+  await expect(page.locator("#motion-label")).toContainText("DYNO READY");
+
+  // Trigger simultaneous two-hand release via KeyV while dynoReady
+  await page.keyboard.press("KeyV");
+  await page.keyboard.up("KeyW");
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        contacts: window.cruxMotion.snapshot.contacts,
+        dynoLaunch: window.cruxMotion.dynoLaunch,
+      })),
+    )
+    .toEqual({
+      contacts: [null, null],
+      dynoLaunch: true,
+    });
+
+  // Also verify #release-both button simultaneously detaches both contacts into flight
+  await page.locator("#retry").click();
+  await page.locator("#resume").click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.cruxMotion.snapshot.contacts.every((c) => c !== null),
+      ),
+    )
+    .toBe(true);
+  await page.locator("#release-both").click();
+  await expect
+    .poll(() => page.evaluate(() => window.cruxMotion.snapshot.contacts))
+    .toEqual([null, null]);
+
+  // Run First Flight Watch Beta and capture crisp dyno catch impact frame screenshot
+  await page.locator("#watch-beta").click();
+  await expect(page.locator("#session-mode")).toHaveText("ATTEMPT REVIEW");
+  await expect(page.locator("#route-name")).toHaveText("First Flight");
+
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolvePromise, rejectPromise) => {
+        const deadline = performance.now() + 10_000;
+        const waitImpact = () => {
+          if (window.cruxMotion.snapshot.flew) {
+            resolvePromise();
+            return;
+          }
+          if (performance.now() > deadline) {
+            rejectPromise(
+              new Error("Timed out waiting for First Flight dyno catch impact"),
+            );
+            return;
+          }
+          requestAnimationFrame(waitImpact);
+        };
+        requestAnimationFrame(waitImpact);
+      }),
+  );
+
+  await page.screenshot({
+    path: resolve(screenshotsDir, "dyno-impact.jpg"),
+    type: "jpeg",
+    quality: 92,
+  });
+
+  // Verify play-panel and release-both stay unclipped within 1280x720
+  for (const selector of ["#wall", "#play-panel", "#release-both"]) {
+    const box = await page.locator(selector).boundingBox();
+    expect(box, `${selector} box`).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(-1);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(721);
+  }
 
   guards.assertClean();
 });

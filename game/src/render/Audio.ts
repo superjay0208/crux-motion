@@ -133,45 +133,157 @@ export class AudioFeedback {
       try {
         const c = this.context,
           t = c.currentTime,
-          p = clamp(e.power || 1, 0.35, 2),
-          scale = 0.55 + 0.45 * (p / 2);
+          p = clamp(e.power || 1, 0.35, 3),
+          scale = 0.55 + 0.45 * Math.min(1.35, p / 2),
+          impact = (e as any).impact as string | undefined;
         switch (e.kind) {
           case "catch": {
-            // Warm low triangle body thud + crisp rock contact tap
-            this.tone(c, "triangle", 145, 48, t, 0.095, 0.085 * scale, 0.004);
-            this.tone(c, "sine", 610, 215, t, 0.022, 0.032 * scale, 0.002);
-            this.burst(
-              c,
-              "bandpass",
-              1150,
-              760,
-              1.6,
-              t,
-              0.026,
-              0.038 * scale,
-            );
-            // Bright fifth harmonic ping on clean / dyno catches
-            if (/dyno|clean/i.test(e.message)) {
+            const isApex = impact === "apex" || /apex/i.test(e.message);
+            const isDyno =
+              isApex || impact === "dyno" || /dyno/i.test(e.message);
+            if (isDyno) {
+              // Deep sub-bass punch (92 -> 34 Hz sine) + warm body thud + crisp rock slap
               this.tone(
                 c,
                 "sine",
-                587.33,
-                880,
-                t + 0.012,
-                0.065,
-                0.036 * scale,
-                0.005,
+                92,
+                34,
+                t,
+                isApex ? 0.17 : 0.145,
+                (isApex ? 0.115 : 0.098) * scale,
+                0.003,
               );
               this.tone(
                 c,
-                "sine",
-                880,
-                880,
-                t + 0.055,
-                0.15,
-                0.026 * scale,
-                0.008,
+                "triangle",
+                165,
+                52,
+                t,
+                0.095,
+                0.082 * scale,
+                0.003,
               );
+              this.tone(c, "sine", 780, 240, t, 0.024, 0.044 * scale, 0.002);
+              this.burst(
+                c,
+                "bandpass",
+                1420,
+                820,
+                1.45,
+                t,
+                0.034,
+                0.055 * scale,
+              );
+              if (isApex) {
+                // Celebratory D-major harmonic triad (D5 587 Hz -> A5 880 Hz -> F#6 1480 Hz)
+                this.tone(
+                  c,
+                  "sine",
+                  587.33,
+                  587.33,
+                  t + 0.01,
+                  0.18,
+                  0.044 * scale,
+                  0.004,
+                );
+                this.tone(
+                  c,
+                  "sine",
+                  880,
+                  880,
+                  t + 0.048,
+                  0.22,
+                  0.042 * scale,
+                  0.005,
+                );
+                this.tone(
+                  c,
+                  "sine",
+                  1479.98,
+                  1479.98,
+                  t + 0.092,
+                  0.3,
+                  0.038 * scale,
+                  0.006,
+                );
+                this.tone(
+                  c,
+                  "triangle",
+                  739.99,
+                  739.99,
+                  t + 0.092,
+                  0.22,
+                  0.016 * scale,
+                  0.008,
+                );
+              } else {
+                // Bright fifth chime (C5 523.25 Hz -> G5 783.99 Hz) on Dyno catch
+                this.tone(
+                  c,
+                  "sine",
+                  523.25,
+                  523.25,
+                  t + 0.012,
+                  0.15,
+                  0.04 * scale,
+                  0.005,
+                );
+                this.tone(
+                  c,
+                  "sine",
+                  783.99,
+                  783.99,
+                  t + 0.056,
+                  0.21,
+                  0.036 * scale,
+                  0.006,
+                );
+              }
+            } else {
+              // Warm low triangle body thud + crisp rock contact tap
+              this.tone(
+                c,
+                "triangle",
+                145,
+                48,
+                t,
+                0.095,
+                0.085 * scale,
+                0.004,
+              );
+              this.tone(c, "sine", 610, 215, t, 0.022, 0.032 * scale, 0.002);
+              this.burst(
+                c,
+                "bandpass",
+                1150,
+                760,
+                1.6,
+                t,
+                0.026,
+                0.038 * scale,
+              );
+              if (/clean/i.test(e.message)) {
+                this.tone(
+                  c,
+                  "sine",
+                  587.33,
+                  880,
+                  t + 0.012,
+                  0.065,
+                  0.036 * scale,
+                  0.005,
+                );
+                this.tone(
+                  c,
+                  "sine",
+                  880,
+                  880,
+                  t + 0.055,
+                  0.15,
+                  0.026 * scale,
+                  0.008,
+                );
+              }
             }
             break;
           }
@@ -208,18 +320,43 @@ export class AudioFeedback {
             break;
           }
           case "launch": {
-            // Rising airy sweep (220 -> 440 Hz + soft bandpass whoosh) scaled by power
-            this.tone(c, "sine", 220, 440, t, 0.17, 0.038 * scale, 0.012);
-            this.burst(
-              c,
-              "bandpass",
-              380,
-              1220,
-              1.1,
-              t,
-              0.19,
-              0.032 * scale,
-            );
+            if (impact === "launch" || e.message.includes("Dyno")) {
+              // Energetic upward spring-release whoosh (115 -> 390 Hz triangle + crisp bandpass air burst)
+              this.tone(
+                c,
+                "triangle",
+                115,
+                390,
+                t,
+                0.19,
+                0.068 * scale,
+                0.006,
+              );
+              this.tone(c, "sine", 180, 95, t, 0.038, 0.045 * scale, 0.003);
+              this.burst(
+                c,
+                "bandpass",
+                340,
+                1680,
+                1.35,
+                t,
+                0.21,
+                0.052 * scale,
+              );
+            } else {
+              // Subtle soft drop on ordinary uncharged flight
+              this.tone(c, "sine", 210, 155, t, 0.11, 0.022 * scale, 0.01);
+              this.burst(
+                c,
+                "bandpass",
+                520,
+                340,
+                0.9,
+                t,
+                0.11,
+                0.016 * scale,
+              );
+            }
             break;
           }
           case "checkpoint": {
