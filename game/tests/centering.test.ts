@@ -104,15 +104,88 @@ describe("continuous climbing workspace", () => {
     const edge = structuredClone(safe);
     edge.sequence = 2;
     edge.t = 180;
-    const dy = edge.detections[0].points[0].y - 0.14;
+    const dy = edge.detections[0].points[0].y - 0.05;
     for (const p of edge.detections[0].points) p.y -= dy;
-    edge.pose[15].y = 0.14;
+    edge.pose[15].y = 0.05;
     c.process(edge);
     expect(c.frameEdge.left).toBe(true);
     expect(c.resetSafe.left).toBe(false);
-    c.process({ ...safe, sequence: 3, t: 260 });
+    const band = structuredClone(safe);
+    band.sequence = 3;
+    band.t = 220;
+    const bandDy = band.detections[0].points[0].y - 0.12;
+    for (const p of band.detections[0].points)
+      p.y = Math.max(0.03, p.y - bandDy);
+    band.pose[15].y = 0.12;
+    c.process(band);
+    expect(c.frameEdge.left).toBe(false);
+    expect(c.resetSafe.left).toBe(false);
+    c.process({ ...safe, sequence: 4, t: 280 });
     expect(c.frameEdge.left).toBe(false);
     expect(c.resetSafe.left).toBe(true);
+  });
+  it("accepts comfortable seated chest Jug poses while keeping >= 0.065 edge hysteresis", () => {
+    const c = new Camera({} as HTMLVideoElement),
+      s = new Simulation(routes[0], "camera"),
+      seated = observation(structuredClone(s.input), 1, 100);
+    for (const [sideIdx, poseShoulder, poseWrist] of [
+      [0, 11, 15],
+      [1, 12, 16],
+    ] as const) {
+      seated.pose[poseShoulder].y = 0.67;
+      const shiftY = 0.85 - seated.detections[sideIdx].points[0].y;
+      for (const p of seated.detections[sideIdx].points) p.y += shiftY;
+      seated.pose[poseWrist].y = 0.85;
+    }
+    c.process(seated);
+    expect(c.frameEdge).toEqual({ left: false, right: false });
+    expect(c.resetSafe).toEqual({ left: true, right: true });
+    const lowerBand = structuredClone(seated);
+    lowerBand.sequence = 2;
+    lowerBand.t = 180;
+    const shiftBand = 0.93 - lowerBand.detections[0].points[0].y;
+    for (const p of lowerBand.detections[0].points)
+      p.y = Math.min(0.96, p.y + shiftBand);
+    lowerBand.pose[15].y = 0.93;
+    c.process(lowerBand);
+    expect(c.frameEdge.left).toBe(false);
+    expect(c.resetSafe.left).toBe(false);
+    const lowerEdge = structuredClone(seated);
+    lowerEdge.sequence = 3;
+    lowerEdge.t = 260;
+    const shiftEdge = 0.97 - lowerEdge.detections[0].points[0].y;
+    for (const p of lowerEdge.detections[0].points) p.y += shiftEdge;
+    lowerEdge.pose[15].y = 0.97;
+    c.process(lowerEdge);
+    expect(c.frameEdge.left).toBe(true);
+    expect(c.resetSafe.left).toBe(false);
+  });
+  it("resets a dropped free-hand anchor to chest-ready neutral when held is provided", () => {
+    const c = new Camera({} as HTMLVideoElement),
+      s = new Simulation(routes[0], "camera"),
+      raw = structuredClone(s.input);
+    raw.left.target = v(-0.1, 0.15);
+    raw.right.target = v(0.1, 0.15);
+    for (let n = 0; n < 6; n++) c.process(observation(raw, n + 1, (n + 1) * 70));
+    const droppedAnchors = {
+      left: v(-0.269, -0.56),
+      right: v(0.16, 0.48),
+    };
+    c.recenter(droppedAnchors);
+    expect(c.currentInput!.left.target).toEqual(v(-0.269, -0.56));
+    c.recenter(droppedAnchors, undefined, { left: false, right: true });
+    expect(c.currentInput!.left.target).toEqual(v(-0.18, 0.42));
+    expect(c.currentInput!.right.target).toEqual(v(0.16, 0.48));
+    raw.left.target = v(-0.1, 0.35);
+    for (let n = 0; n < 6; n++)
+      c.process(observation(raw, 20 + n, 600 + n * 70));
+    expect(c.currentInput!.left.target.y).toBeGreaterThan(0.7);
+    expect(dist(c.currentInput!.right.target, v(0.16, 0.48))).toBeLessThan(
+      1e-5,
+    );
+    const comfortableFree = { left: v(-0.15, 0.38), right: v(0.16, 0.48) };
+    c.recenter(comfortableFree, undefined, { left: false, right: true });
+    expect(c.currentInput!.left.target).toEqual(v(-0.15, 0.38));
   });
   it("can reset 30 times without moving a held climber or storing a fake launch", () => {
     const c = new Camera({} as HTMLVideoElement),

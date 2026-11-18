@@ -160,6 +160,16 @@ function geometricGrip(f: Features): { grip: Grip; score: number } {
       f[8] > 0.85
     )
       return { grip: "release", score: 0.96 };
+    if (
+      curl < 0.2 &&
+      distal < 0.22 &&
+      Math.max(...f.slice(0, 4)) < 0.28 &&
+      knuckle < 0.38 &&
+      compact > 1.4 &&
+      f[8] > 1.32 &&
+      f[9] > 0.6
+    )
+      return { grip: "release", score: 0.92 };
     if (compact < 1.25 || (curl > 0.48 && distal > 0.3 && compact < 1.8))
       return { grip: "jug", score: 0.9 };
     if (curl > 0.27 && distal < 0.34 && knuckle < 0.48)
@@ -170,7 +180,7 @@ function geometricGrip(f: Features): { grip: Grip; score: number } {
       compact > 1.3 &&
       compact < 2.6 &&
       (knuckle > 0.23 || curl > 0.12) &&
-      f[8] < 1.6
+      f[8] < 1.45
     )
       return { grip: "sloper", score: 0.86 };
     if (curl > 0.5 && compact < 1.8) return { grip: "jug", score: 0.82 };

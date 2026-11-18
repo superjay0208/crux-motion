@@ -12,8 +12,10 @@ import {
 import { IdentityTracker, type Detection } from "./identity";
 import { elbowBend } from "./gestures";
 import {
+  gripFits,
   hands,
   type Hand,
+  type Hold,
   type Inputs,
   type Grip,
   type ArmPose,
@@ -42,6 +44,7 @@ export type Calibration = {
   provider: string;
   motionGain?: number;
   usePersonalGrips?: boolean;
+  assistedGrips?: boolean;
   comfortGain?: number;
   armMode?: "anchors" | "mirror" | "reach";
   armGain?: number;
@@ -54,6 +57,14 @@ export class Camera {
   private targets = { left: v(-0.12, 0.6), right: v(0.12, 0.6) };
   get maxFrameAgeMs() {
     return Math.max(300, Math.min(550, this.inferenceMs * 3 + 60));
+  }
+  get assistedGrips() {
+    return !!this.calibration.assistedGrips;
+  }
+  acceptsGrip(grip: Grip, hold: Hold["kind"]) {
+    return this.assistedGrips
+      ? grip !== "release" && grip !== "unknown"
+      : gripFits(grip, hold);
   }
   private bendHint = { left: -1, right: 1 };
   worker: Worker | null = null;
@@ -84,6 +95,7 @@ export class Camera {
     reach: 0.44,
     mirrorLabels: false,
     provider: "paired",
+    assistedGrips: false,
   };
   observation: Observation | null = null;
   assigned: Partial<Record<Hand, Detection>> = {};
@@ -101,6 +113,12 @@ export class Camera {
   resetSafe = { left: false, right: false };
   positionSpeed = { left: 0, right: 0 };
   private previousPosition: Partial<Record<Hand, { p: V; t: number }>> = {};
+  private readyContinuity: Partial<Record<Hand, { grip: Grip; t: number }>> =
+    {};
+  private lastOrientation: Record<Hand, "up" | "down" | "side"> = {
+    left: "up",
+    right: "up",
+  };
   centerCount = 0;
   recognition: Record<
     Hand,
@@ -114,6 +132,8 @@ export class Camera {
   onObservation: () => void = () => {};
   onLost: () => void = () => {};
   private raf = 0;
+  private vfc = 0;
+  private pendingFrame = false;
   private epoch = 0;
   constructor(
     readonly video: HTMLVideoElement = document.createElement("video"),
@@ -222,6 +242,7 @@ export class Camera {
           resolve();
         } else if (data.kind === "skipped") {
           this.busy = false;
+          if (this.pendingFrame) this.captureFrame();
         } else if (data.kind === "error") {
           clearTimeout(timeout);
           this.busy = false;
@@ -231,6 +252,7 @@ export class Camera {
         } else if (data.kind === "result") {
           this.busy = false;
           this.process(data);
+          if (this.pendingFrame) this.captureFrame();
         }
       };
       worker.postMessage({
@@ -240,45 +262,78 @@ export class Camera {
       });
     });
   }
+  private scheduleLoop() {
+    if (!this.running) return;
+    const video = this.video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+    };
+    if (typeof video.requestVideoFrameCallback === "function") {
+      this.vfc = video.requestVideoFrameCallback(this.loop);
+    } else {
+      this.raf = requestAnimationFrame(this.loop);
+    }
+  }
   private loop = () => {
     if (!this.running) return;
-    this.raf = requestAnimationFrame(this.loop);
-    if (
-      this.ready &&
-      !this.busy &&
-      this.video.readyState >= 2 &&
-      this.video.currentTime !== this.lastVideo
-    ) {
-      this.busy = true;
-      this.lastVideo = this.video.currentTime;
-      const t = performance.now(),
-        epoch = this.epoch;
-      createImageBitmap(this.video)
-        .then((frame) => {
-          if (epoch !== this.epoch || !this.worker) {
-            frame.close();
-            return;
-          }
-          this.worker.postMessage(
-            {
-              kind: "frame",
-              frame,
-              t,
-              sequence: ++this.sequence,
-              width: this.video.videoWidth,
-              height: this.video.videoHeight,
-            },
-            [frame],
-          );
-        })
-        .catch(() => {
-          if (epoch === this.epoch) {
-            this.busy = false;
-            this.onLost();
-          }
-        });
-    }
+    this.scheduleLoop();
+    this.captureFrame();
   };
+  private captureFrame() {
+    if (
+      !this.running ||
+      !this.ready ||
+      this.video.readyState < 2 ||
+      this.video.currentTime === this.lastVideo
+    )
+      return;
+    if (this.busy) {
+      this.pendingFrame = true;
+      return;
+    }
+    this.pendingFrame = false;
+    this.busy = true;
+    this.lastVideo = this.video.currentTime;
+    const t = performance.now(),
+      epoch = this.epoch,
+      rawW = this.video.videoWidth,
+      rawH = this.video.videoHeight,
+      downscale = rawW > 640,
+      targetW = downscale ? 640 : rawW,
+      targetH = downscale
+        ? Math.max(1, Math.round((rawH * 640) / rawW))
+        : rawH;
+    (downscale
+      ? createImageBitmap(this.video, {
+          resizeWidth: targetW,
+          resizeHeight: targetH,
+          resizeQuality: "low",
+        })
+      : createImageBitmap(this.video)
+    )
+      .then((frame) => {
+        if (epoch !== this.epoch || !this.worker) {
+          frame.close();
+          return;
+        }
+        this.worker.postMessage(
+          {
+            kind: "frame",
+            frame,
+            t,
+            sequence: ++this.sequence,
+            width: targetW,
+            height: targetH,
+          },
+          [frame],
+        );
+      })
+      .catch(() => {
+        if (epoch === this.epoch) {
+          this.busy = false;
+          this.onLost();
+        }
+      });
+  }
   process(o: Observation) {
     this.observation = o;
     this.inferenceMs = o.inferenceMs;
@@ -317,17 +372,27 @@ export class Camera {
       const f = gripResult.features;
       this.gripScores[side] = gripResult.scores;
       this.currentFeatures[side] = f;
-      const found = anchorsMode
-          ? gripResult.found
-          : classify(
-              f,
-              this.calibration.usePersonalGrips === false
-                ? {}
-                : this.calibration.prototypes,
-              this.latches[side].grip,
-            ),
-        grip = this.latches[side].update(found.grip, found.score, o.t);
-      this.grips[side] = grip;
+      const rawFound = anchorsMode
+        ? gripResult.found
+        : classify(
+            f,
+            this.calibration.usePersonalGrips === false
+              ? {}
+              : this.calibration.prototypes,
+            this.latches[side].grip,
+          );
+      const rawCurl =
+        f.length >= 4 ? (f[0] + f[1] + f[2] + f[3]) / 4 : 0;
+      const found =
+        this.calibration.assistedGrips &&
+        rawFound.grip === "unknown" &&
+        validFeatures(f) &&
+        (gripResult.scores
+          ? gripResult.scores.open < 0.62 && gripResult.scores.openness < 0.62
+          : rawCurl > 0.24)
+          ? { grip: "jug" as Grip, score: Math.max(rawFound.score, 0.76) }
+          : rawFound;
+      let grip = this.latches[side].update(found.grip, found.score, o.t);
       const poseWrist = o.pose[poseSide === "left" ? 15 : 16];
       const wrist =
         d &&
@@ -352,26 +417,63 @@ export class Camera {
         !!s &&
         (s.visibility ?? 1) > 0.5 &&
         (!mirrorMode || !!armSource);
+      if (!quality || found.grip === "release" || grip === "release")
+        delete this.readyContinuity[side];
+      const prevContinuity = this.readyContinuity[side];
+      if (
+        prevContinuity &&
+        (o.t < prevContinuity.t || o.t - prevContinuity.t > 140)
+      )
+        delete this.readyContinuity[side];
+      const activeContinuity = this.readyContinuity[side];
+      if (
+        activeContinuity &&
+        quality &&
+        validFeatures(f) &&
+        found.grip === activeContinuity.grip &&
+        found.score >= 0.4
+      ) {
+        this.latches[side].grip = activeContinuity.grip;
+        grip = activeContinuity.grip;
+      }
+      const directReady =
+        validFeatures(f) &&
+        grip === found.grip &&
+        grip !== "release" &&
+        grip !== "unknown";
+      let effectiveGrip = grip;
+      let ready = directReady;
+      if (directReady && quality) {
+        this.readyContinuity[side] = { grip, t: o.t };
+      } else if (
+        activeContinuity &&
+        quality &&
+        (!d || !validFeatures(f) || found.grip === "unknown")
+      ) {
+        effectiveGrip = activeContinuity.grip;
+        ready = true;
+      }
+      this.grips[side] = effectiveGrip;
       this.frameEdge[side] =
         !!wrist &&
-        (wrist.x < (anchorsMode ? 0.09 : 0.05) ||
-          wrist.x > (anchorsMode ? 0.91 : 0.95) ||
-          wrist.y < (anchorsMode ? 0.16 : 0.05) ||
-          wrist.y > (anchorsMode ? 0.9 : 0.95) ||
+        (wrist.x < (anchorsMode ? 0.045 : 0.05) ||
+          wrist.x > (anchorsMode ? 0.955 : 0.95) ||
+          wrist.y < (anchorsMode ? 0.06 : 0.05) ||
+          wrist.y > (anchorsMode ? 0.965 : 0.95) ||
           (d?.points.filter(
-            (p) => p.x < 0.025 || p.x > 0.975 || p.y < 0.025 || p.y > 0.975,
-          ).length ?? 0) >= 4);
+            (p) => p.x < 0.012 || p.x > 0.988 || p.y < 0.012 || p.y > 0.988,
+          ).length ?? 0) >= 5);
       // A larger return zone provides hysteresis: do not repeatedly resume at
       // the same boundary that paused the climb. Whole fingers must fit too.
       this.resetSafe[side] =
         !!wrist &&
         quality &&
-        wrist.x > 0.15 &&
-        wrist.x < 0.85 &&
-        wrist.y > 0.27 &&
-        wrist.y < 0.82 &&
+        wrist.x > 0.11 &&
+        wrist.x < 0.89 &&
+        wrist.y > 0.16 &&
+        wrist.y < 0.9 &&
         !d?.points.some(
-          (p) => p.x < 0.04 || p.x > 0.96 || p.y < 0.04 || p.y > 0.96,
+          (p) => p.x < 0.025 || p.x > 0.975 || p.y < 0.025 || p.y > 0.975,
         );
       this.recognition[side] = {
         candidate: found.grip,
@@ -386,7 +488,7 @@ export class Camera {
                 ? "Arm tracked · show fingers to catch"
                 : found.grip === "unknown"
                   ? "Shape unclear — hold steady"
-                  : grip !== found.grip
+                  : effectiveGrip !== found.grip
                     ? "Confirming shape"
                     : "Recognized",
       };
@@ -428,12 +530,13 @@ export class Camera {
       }
       const target = { ...this.targets[side] };
       const armMotion = this.arms[side].observe(armSource, o.t, target);
-      let orientation: "up" | "down" | "side" =
-        p.length && p[9].y > p[0].y + 0.025
+      let orientation: "up" | "down" | "side" = p.length
+        ? p[9].y > p[0].y + 0.025
           ? "down"
-          : p.length && Math.abs(p[9].x - p[0].x) > 0.08
+          : Math.abs(p[9].x - p[0].x) > 0.08
             ? "side"
-            : "up";
+            : "up"
+        : this.lastOrientation[side];
       if (p.length && this.calibration.orientations) {
         const ray = orientationFeatures(p, o.width, o.height);
         const matches = Object.entries(this.calibration.orientations)
@@ -445,15 +548,12 @@ export class Camera {
         if (matches[0]?.score > 0.88)
           orientation = matches[0].name as "down" | "side";
       }
+      if (p.length) this.lastOrientation[side] = orientation;
       const bend = this.bendHint[side];
       input[side] = {
         target: mirrorMode && armMotion ? armOffset(armMotion) : target,
-        grip,
-        ready:
-          validFeatures(f) &&
-          grip === found.grip &&
-          grip !== "release" &&
-          grip !== "unknown",
+        grip: effectiveGrip,
+        ready,
         orientation,
         quality,
         bend: bend || (side === "left" ? -1 : 1),
@@ -481,8 +581,15 @@ export class Camera {
     this.calibration.usePersonalGrips = true;
     this.save();
   }
-  recenter(anchors: Record<Hand, V>, poses?: Record<Hand, ArmPose>) {
+  recenter(
+    anchors: Record<Hand, V>,
+    poses?: Record<Hand, ArmPose>,
+    held?: Record<Hand, boolean>,
+  ) {
     this.centerCount++;
+    this.readyContinuity = {};
+    const anchorsMode =
+      !this.calibration.armMode || this.calibration.armMode === "anchors";
     const raw = {
       left: this.mapper.rawPosition[
         this.calibration.mirrorLabels ? "right" : "left"
@@ -495,7 +602,15 @@ export class Camera {
     const mappedAnchors =
       poses && this.calibration.armMode === "mirror"
         ? { left: armOffset(poses.left), right: armOffset(poses.right) }
-        : anchors;
+        : { left: { ...anchors.left }, right: { ...anchors.right } };
+    if (held && anchorsMode) {
+      for (const side of hands) {
+        const a = mappedAnchors[side];
+        if (!held[side] && (a.y < 0.15 || Math.hypot(a.x, a.y) > 0.68)) {
+          mappedAnchors[side] = v(side === "left" ? -0.18 : 0.18, 0.42);
+        }
+      }
+    }
     this.comfort.rebase(raw, mappedAnchors);
     this.mapper.lock();
     for (const side of hands) {
@@ -543,6 +658,8 @@ export class Camera {
   resetFilters() {
     this.previousPosition = {};
     this.positionSpeed = { left: 0, right: 0 };
+    this.readyContinuity = {};
+    this.lastOrientation = { left: "up", right: "up" };
     this.identity.reset();
     for (const side of hands) {
       this.latches[side].reset();
@@ -555,7 +672,15 @@ export class Camera {
     this.running = false;
     this.ready = false;
     this.busy = false;
+    this.pendingFrame = false;
     cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    const video = this.video as HTMLVideoElement & {
+      cancelVideoFrameCallback?: (id: number) => void;
+    };
+    if (this.vfc && typeof video.cancelVideoFrameCallback === "function")
+      video.cancelVideoFrameCallback(this.vfc);
+    this.vfc = 0;
     this.worker?.terminate();
     this.worker = null;
     this.stream?.getTracks().forEach((t) => t.stop());
