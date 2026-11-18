@@ -1,75 +1,74 @@
 # Crux Motion candidate validation
 
-Updated November 12, 2026, Pacific time. Version **0.1.0**, local Windows build. Six personal recordings exposed continued failures in the previous controls. The current default is the researched and adapted **Hand anchors** controller. This candidate adds wall following, quick centering and saved-setting migration. [Centering regressions and acceptance](CENTERING.md), [research, exact ports and limitations](../research/CONTROL_FOUNDATIONS.md).
+Updated November 17, 2026, Pacific time. Version **0.1.0**, local Windows build. Forensic analysis across all six local user play recordings drove Milestones 1–3 upgrades across camera worker latency, `HolisticLandmarker` 2D unwrapping, closed-fist continuity, seated `resetSafe` framing, free-hand neutral recentering, immediate catch capacity, split-hold pull weighting, bounded postural sway, dyno release velocity, sculpted visual/audio craft, **Assisted climb mode**, and **Personal Best Ghosts**. See [forensic telemetry & game-feel research](../research/GAME_FEEL_AND_WEBCAM_RESEARCH.md), [centering acceptance](CENTERING.md), and [control foundations & ports](../research/CONTROL_FOUNDATIONS.md).
 
 ## Build
 
-- Source hash: `1ffed8b2f9b6a16d09a68dd8baa671bdf914cf8e7f66f6eae23cdfde49593f6c`.
-- Built at `2026-11-12T09:28:57.333Z`, November 12 in Pacific time.
-- Node 24.19.0 / npm 11.17.0; TypeScript 5.7.2, Vite 6.0.3, Planck 1.5.0, MediaPipe Tasks Vision 0.10.32.
-- The standalone launcher serves `game/dist/` at `http://127.0.0.1:4318/`. Double-click `run.bat` if needed. Refresh an open game to load this build.
-
-No remote publication was performed. The existing analyzer, 3D sandbox and original 2D game remain separate.
+- Source hash: `451fc91b2b346276f883676339af15a8abd7e7c1aa31c3529994fe63cfd28401`.
+- Built at `2026-11-18T01:00:32.020Z` (November 17, 2026 in Pacific time).
+- Node 24.19.0 / npm 11.17.0; TypeScript 5.7.2, Vite 6.0.3, Planck 1.5.0, MediaPipe Tasks Vision 0.10.32, Playwright 1.56.1 (Microsoft Edge `157.0.0.0`).
+- Standalone local server serves `game/dist/` at `http://127.0.0.1:4318/`. Double-click `run.bat` to launch locally.
 
 ## Current checks
 
 | Check | Result | Scope |
 |---|---|---|
-| TypeScript and Vitest | **100/100 pass** | [Unit results](unit-results.json); full suite includes local recording endpoint tests |
-| Production build | Pass | Bundled worker, pinned local assets, current provenance |
-| Hand-anchor campaign | **12/12 solve; 12/12 identical fresh replays** | [Current results](campaign-results.json); controller marked `anchors` |
-| Previous motor campaign | **12/12 solve; 12/12 identical fresh replays** | [Motor results](motor-campaign-results.json); separate comparison evidence |
-| Production HTTP/package checks | **7/7 pass** | [HTTP results](web-results.json); includes upstream notices and new demo metadata |
-| Latest actual recording | Inspected locally | Original video, timestamps, landmarks and events retained privately |
-| Current browser rendering, GPU execution and human comfort | **Not verified** | Browser inspection fails during tool startup |
-
-New checks cover simultaneous supports, irregular-interval velocity history, direct one-arm pulls, stationary stability, sweeps and ballistic release, pause/recenter reset, finite/wrong/exhausted holds, lone Undercling failure, elbow-sign independence, hidden elbows and world-space finger measurement. Both the legacy and hand-anchor paths have separate 600-second varied-input stability checks. These are accelerated checks, not long real-camera sessions.
-
-The default Hand anchors camera pipeline has authored starter-route completions at 10/15 Hz and multiple gains with both hands inside the return guide. Thirty repeated centering cycles stay within 1 cm of the original settled body position with no slips or stored launch velocity. Additional tests cover reachable reversal without an overshoot buffer, inner/outer boundary hysteresis, fresh settled-frame recovery, old-setting migration and wall following through ascent/fast flight. Current body actuation uses mapped wrist positions without the ambiguous elbow command. Synthetic landmarks test application logic after inference, not image-model accuracy.
+| TypeScript & Vitest | **113/113 pass** (`10` files) | [Unit results](unit-results.json); tracking, centering, anchors, physics, playability, mirror, motion, hands-free, replay, recording isolation |
+| Production build | **Pass** | Classic bundled worker (`tracking.worker.js`), pinned local models/WASM, inline SVG favicons, build provenance |
+| Hand-anchor campaign | **12/12 solve; 12/12 identical fresh replays** | [Anchor results](campaign-results.json); default `controller: "anchors"` demos |
+| Legacy motor campaign | **12/12 solve; 12/12 identical fresh replays** | [Motor results](motor-campaign-results.json); comparison regression suite (`24/24` total climbs) |
+| Live MS Edge E2E & HTTP suite | **14/14 pass** (`17.7s`) | [Web results](web-results.json); `assets.spec.ts` (`7/7`) + `gameplay.spec.ts` (`7/7`), zero 4xx/5xx, zero external requests |
+| Live MS Edge GPU worker smoke | **Pass (`GPU` delegate on both)** | [Model smoke](model-smoke.json); `paired` steady-state `17.0–19.6 ms`, `holistic` steady-state `9.2–11.5 ms` on 5 blank frames |
+| Rendered desktop screenshots | **Captured & visually inspected** | [Landing](screenshots/landing-desktop.jpg), [Practice](screenshots/game-desktop.jpg), [Grip Lab](screenshots/grip-lab-desktop.jpg), [Cross Current Beta](screenshots/cross-current-beta.jpg) |
+| Counterfactual 6-clip replay | **Evaluated locally** | `scripts/review-recorded-anchors.ts`; raw private media/landmarks remain inside Git-ignored `personal-recordings/` |
+| Live human webcam playthrough | **Pending player session** | Automated suites and counterfactual replays do not substitute for fresh human comfort/completion testing |
 
 ## Campaign results
 
-Current demonstrations carry `controller: anchors`. They use normal semantic controls, finite contact/reserve rules and the same simulation as camera play; no script marks routes complete or remotely attaches a hand. Legacy motor results remain separate.
+All twelve shipped demonstrations use `controller: "anchors"`, normal semantic inputs, finite grip capacity/reserve rules, and `match` dual-patch finish targets:
 
-| Route | Hand-anchor ticks at 120 Hz | Fresh replay |
-|---|---:|---|
-| Jug Ladder | 211 | Pass |
-| Cross Current | 238 | Pass |
-| Edge Etiquette | 237 | Pass |
-| Pendulum Bay | 256 | Pass |
-| Soft Landing | 237 | Pass |
-| Under the Lip | 211 | Pass |
-| Pinch Point | 229 | Pass |
-| Quiet Apex | 259 | Pass |
-| First Flight | 349 | Pass |
-| Catch and Carry | 368 | Pass |
-| Crosswind | 577 | Pass |
-| Campus Circuit | 448 | Pass |
+| Route | Hand-anchor ticks at 120 Hz | Seconds | Fresh replay |
+|---|---:|---:|---|
+| Jug Ladder (`motion-01`) | 211 | 1.76s | Pass |
+| Cross Current (`motion-02`) | 229 | 1.91s | Pass |
+| Edge Etiquette (`motion-03`) | 230 | 1.92s | Pass |
+| Pendulum Bay (`motion-04`) | 239 | 1.99s | Pass |
+| Soft Landing (`motion-05`) | 230 | 1.92s | Pass |
+| Under the Lip (`motion-06`) | 211 | 1.76s | Pass |
+| Pinch Point (`motion-07`) | 224 | 1.87s | Pass |
+| Quiet Apex (`motion-08`) | 240 | 2.00s | Pass |
+| First Flight (`motion-09`) | 349 | 2.91s | Pass |
+| Catch and Carry (`motion-10`) | 365 | 3.04s | Pass |
+| Crosswind (`motion-11`) | 575 | 4.79s | Pass |
+| Campus Circuit (`motion-12`) | 441 | 3.68s | Pass |
 
-The pilot moves much faster than a person. These results establish feasibility and determinism, not comfortable camera completion. Demonstrations/reviews do not award progress.
+Pilot solutions run faster than human tempo and establish mechanical feasibility and replay determinism rather than human webcam difficulty. Watching demonstrations never awards route progress.
 
-## Latest recorded failure and diagnostic replay
+## Counterfactual evaluation across 6 personal recordings
 
-The newest 60-second swing test used build `69a19e49…` and had 21.3 seconds of active play, five catches and four slips. Frame-age p95 was 149.1 ms; inference p95 was 90.9 ms. Two protective pauses and a retry occurred. Preparation correctly blocked early play.
+Replaying all 6 preserved local sessions (`261.1 s` total, `151.5 s` active play, `3,411` unique camera observations) through the Milestone 1+2 `Camera` and `Simulation` pipeline (`scripts/review-recorded-anchors.ts`):
 
-Near 27.98 seconds, the right elbow command reverses to approximately −2.49 radians while its physical elbow remains bent the other way; aim error reaches 0.38 m. The video shows an upside-down character at 29.5 seconds, then a supporting Jug overload at 29.88 seconds. This identifies a specific failure of the previous elbow-to-motor path. [Detailed source-informed analysis](../research/CONTROL_FOUNDATIONS.md).
+- **Seated `resetSafe` framing pass rate:**
+  - Comfortable active per-hand observations (`n = 3,659`): **`71.82%` (`2,628 / 3,659`) → `91.86%` (`3,361 / 3,659`)** (`+20.04 pp`; rejections cut `28.18% → 8.14%`).
+  - Comfortable active two-hand simultaneous frames (`n = 1,742`, gating `HandsFreeGate` and `RecoveryGate`): **`55.97%` (`975 / 1,742`) → `87.66%` (`1,527 / 1,742`)** (`+31.69 pp`; seated centered Clip 5 `c765d68e` rose **`40.61% → 99.72%`**, Clip 4 `31872ed4` **`65.26% → 97.08%`**).
+  - All tracked observations: per-hand **`69.29% → 85.37%`** (`n = 6,092`); two-hand **`52.77% → 78.23%`** (`n = 3,000`).
+- **Postural stability (`maxTorsoAngle` & inversions):**
+  - Global max **`0.1551 rad`** across all 7 attempts (`0.0365, 0.1551, 0.0598, 0.1192, 0.0518, 0.0807, 0.0310 rad`), strictly **`<= 0.20 rad`** with **`0` inversions** (compared to `7.4428 rad` and `153` inverted frames in original Clip 6).
+- **Overload slips:**
+  - Reduced **`25 → 4` (`-84.0%`)** across all 6 recordings, with **`0` overload slips across all 3 centered sessions (`31872ed4`, `c765d68e`, `6c0b341d` — `11 → 0`)**.
+- **Clip 6 (`6c0b341d`) Attempt 2 (`48.70s` free-hand recenter):**
+  - Passing `held` resets the dropped free left-hand offset (`held = { left: false, right: true }`) from hip-pinned `(-0.1903, -0.7193)` (`-0.560 m` in original telemetry) to chest-ready **`(-0.18, 0.42)`**, restoring upward reach (`maxLeftOffsetY = +0.7447 m`, `maxLeftHandY = 1.2148 m`, `minMove0Dist = 0.1279 m`), achieving **2 catches** (including `move-0` `"Secure catch"` at `50.80s` / `tick 830`), and remaining `playing` through `tick 1934` (`0` slips) instead of falling at `tick 1125`.
 
-Retained landmarks were run through the changed controller. The first segment catches hold 1 without overload; the second still falls after releases. Neither has torso inversion or overload slips. This is counterfactual playback under different feedback, not a new human attempt or completed level. Raw data and review output remain private.
+*Scope caveat:* Counterfactual replay feeds recorded landmarks from earlier builds into updated control/physics code without closed-loop human visual reaction; it validates specific regression fixes rather than claiming human route completions.
 
-## Model and rendering limits
+## Live browser rendering & offline GPU worker execution
 
-GPU-first initialization/CPU fallback and world-point shape scoring are built/type checked, but fresh browser execution remains pending. No measured GPU speedup or improved personal gesture accuracy is claimed.
+Executed against `http://127.0.0.1:4318` in Microsoft Edge (`Edg/157.0.0.0`) via `npm run web:check`:
 
-Earlier CPU/WASM blank-frame tests and screenshots belong to earlier candidates: [provider smoke](model-smoke.json), [historical playbacks](browser-playbacks.json), [historical desktop](screenshots/game-desktop.jpg). They establish past compatibility, not current GPU behavior or rendered verification. Browser use fails during startup in this session; current Work browser settings were not observed.
-
-The new torso stays upright and arms are retargeted graphics. Body translation/lower-body motion remain physical, and release follows measured motion. This is a gameplay control model, not unrestricted active-ragdoll physics or validated human biomechanics. A continuing free pendulum after stationary hands is not established.
+- **Zero runtime/network anomalies:** zero `pageerror` events, zero `console.error` messages, zero HTTP 4xx/5xx responses (including inline SVG favicons), and zero non-loopback requests.
+- **Offline GPU worker inference (`/diagnostics.html`):** both `paired` (`PoseLandmarker` + `HandLandmarker`) and `holistic` (`HolisticLandmarker`) initialized with **`delegate: "GPU"`** and completed 5 blank frames offline (`paired`: shader warmup `4,448.2 ms`, steady-state **`17.0–19.6 ms`**; `holistic`: shader warmup `2,189.7 ms`, steady-state **`9.2–11.5 ms`**; [model-smoke.json](model-smoke.json)). Blank-frame GPU timings verify local WebGL/WASM worker execution, not live webcam person-tracking throughput.
+- **Visual & responsive verification:** responsive bounds passed at `1280×720` (DPR `1` and `1.25`) and `1024×640` (DPR `1`). Inspected screenshots confirm crisp display typography ([landing-desktop.jpg](screenshots/landing-desktop.jpg)), sculpted faceted/domed holds across Jug/Crimp/Sloper/Pinch ([grip-lab-desktop.jpg](screenshots/grip-lab-desktop.jpg)), unobstructed practice HUD and aim reticles ([game-desktop.jpg](screenshots/game-desktop.jpg)), and crossed-arm front/back depth sorting with `Release` wrist rays and coral `· straining!` limb/HUD warnings ([cross-current-beta.jpg](screenshots/cross-current-beta.jpg)).
 
 ## Sources and local data
 
-Four reviewed TypeScript files are vendored and two climbing operations are adapted at pinned commits. [Port manifest](../research/PORT_MANIFEST.json), [notices](../THIRD_PARTY.md). Imported notices ship in the production build and are checked over HTTP. The reference cache is ignored and excluded from the game build.
-
-Processing stays local. Normal play saves no video. Explicit recorded tests include game sound without microphone input and save under ignored `personal-recordings/`; the loopback server rejects foreign origins and direct reads. Original clips are preserved privately.
-
-## Next acceptance check
-
-Use **Centering · follow and reset** after refresh. Expected behavior is a smoothly following wall view, a frozen climb before the real hand leaves frame, automatic resumption after returning into the guide and settling, and then small transfers to holds 1 and 2. This preset selects Hand anchors. Old motor settings migrate once while preserving personal grip calibration. New recordings identify controller, delegate, world-point availability, frame age, moving input centers and recovery/view state. Human comfort, crossing continuity, precise holds, airborne catches and complete camera routes remain open.
+Imported BSD OneEuroFilter, MIT open-source-hands, MIT GorillaLocomotion, and MIT Godot XR Tools notices ship in `game/dist/licenses/` and are verified over HTTP ([port manifest](../research/PORT_MANIFEST.json), [THIRD_PARTY.md](../THIRD_PARTY.md)). Normal play records no media; explicit test recordings stay under Git-ignored `personal-recordings/`, and `/api/recordings/*` rejects foreign origins and direct reads (`403`).

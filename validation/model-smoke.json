@@ -1,34 +1,38 @@
 {
-  "kind": "Real browser WASM execution on five generated blank frames per provider; not human tracking accuracy or motion-to-photon latency",
+  "kind": "Real browser execution on five generated blank frames per provider; not human tracking accuracy or motion-to-photon latency",
   "url": "http://127.0.0.1:4318/diagnostics.html",
+  "recordedAt": "2026-11-18T01:01:45.293Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "reports": [
     {
       "provider": "paired",
       "frames": 5,
-      "initializationAndRunMs": 979.1999999992549,
+      "initializationAndRunMs": 4851.699999999255,
       "inferenceMs": [
-        198.70000000018626,
-        49.39999999944121,
-        41.5,
-        47.200000000186265,
-        44
+        4471.5,
+        20.599999997764826,
+        18.699999999254942,
+        17.800000000745058,
+        17.600000001490116
       ],
       "detectedHands": 0,
-      "pass": true
+      "pass": true,
+      "delegate": "GPU"
     },
     {
       "provider": "holistic",
       "frames": 5,
-      "initializationAndRunMs": 470.20000000018626,
+      "initializationAndRunMs": 2517.5,
       "inferenceMs": [
-        193.40000000037253,
-        21.90000000037253,
-        18,
-        18,
-        17.399999999441206
+        2216.5,
+        12.200000002980232,
+        10.699999999254942,
+        10.099999997764826,
+        10.300000000745058
       ],
       "detectedHands": 0,
-      "pass": true
+      "pass": true,
+      "delegate": "GPU"
     }
   ]
 }
