@@ -1,12 +1,15 @@
 # Crux Motion
 
-Crux Motion is a local camera-controlled 2D campus climbing game. Reach, cross arms, form grip gestures, pull, swing, release, and catch through twelve authored routes. It builds on local Crux, Chalk Sandbox movement lessons, and CruxScope tracking discipline.
+Crux Motion is a local and browser-hosted camera-controlled 2D campus climbing game. Reach, cross arms, form grip gestures, pull, swing, release, and catch through twelve authored routes. It builds on local Crux, Chalk Sandbox movement lessons, and CruxScope tracking discipline.
 
-**Implementation candidate 0.1.0, updated November 17, 2026** (`sourceHash` `451fc91b2b346276f883676339af15a8abd7e7c1aa31c3529994fe63cfd28401`). Forensic telemetry analysis across six local play recordings drove comprehensive upgrades to webcam capture latency, seated framing, gesture continuity, planted-hand physics, dyno release windows, visual/audio feedback, and motor accessibility. See [forensic telemetry & game-feel research](research/GAME_FEEL_AND_WEBCAM_RESEARCH.md), [control foundations and ports](research/CONTROL_FOUNDATIONS.md), and [validation report](validation/REPORT.md). Live human webcam acceptance on this build remains open.
+- **Play in browser (GitHub Pages):** [https://superjay0208.github.io/crux-motion/](https://superjay0208.github.io/crux-motion/) (deep-link any route via `?route=motion-01`..`motion-12`, e.g. [`?route=motion-09`](https://superjay0208.github.io/crux-motion/?route=motion-09))
+- **Personal website portfolio:** [https://superjay0208.github.io/](https://superjay0208.github.io/)
 
-## Play locally
+**Implementation candidate 0.1.0, updated November 17, 2026** (`sourceHash` `d93a923799bf11bc075e95d926e7c2e59b4a78a97b28c252c91f0f95032dcd85`). Forensic telemetry analysis across six local play recordings plus production web-performance profiling drove comprehensive upgrades to webcam capture latency, seated framing, gesture continuity, planted-hand physics, dyno release windows, batched 2D Canvas rendering, zero-JSON 120 Hz simulation hot paths, autonomous landing physics showcases, visual/audio feedback, and motor accessibility. See [forensic telemetry & game-feel research](research/GAME_FEEL_AND_WEBCAM_RESEARCH.md), [control foundations and ports](research/CONTROL_FOUNDATIONS.md), and [validation report](validation/REPORT.md). Live human webcam acceptance on this build remains open.
 
-Double-click [run.bat](run.bat). Keep its server window open while playing; it opens `http://127.0.0.1:4318/` in your browser. The prebuilt release is in `game/dist/`. Use a current desktop Chromium browser (verified in Microsoft Edge) and Node 24 or newer. The launcher uses the installed Node runtime, with the existing workspace runtime as a fallback.
+## Play in browser or locally
+
+Open [https://superjay0208.github.io/crux-motion/](https://superjay0208.github.io/crux-motion/) in a current desktop Chromium browser (verified in Microsoft Edge), or double-click [run.bat](run.bat) to play locally at `http://127.0.0.1:4318/` (keeping its server window open while playing). All webcam inference runs 100% locally in your browser via WebAssembly/WebGL workers—heavy MediaPipe `.task`/`.wasm` assets load lazily only when entering Camera mode or `/diagnostics.html`, keeping the initial landing transfer to ~`150 KB` compressed. For local play, the prebuilt release is in `game/dist/` and requires Node 24 or newer.
 
 Choose **Use your camera**. Start with relaxed Jug fists near your chest, with shoulders, elbows, and both hands visible. Camera frames are scheduled via `requestVideoFrameCallback` and downscaled to aspect-exact `640×360` bitmaps before worker transfer to reduce pixel-copy latency while preserving GPU acceleration (with automatic CPU fallback). Use small movements: open the free hand, reach toward the next hold, and close to catch; lower the supporting fist a few centimetres to pull the body up. Form hooked fingers for a Crimp, a rounded palm with fingers together for a Sloper, and opposing thumb/fingers for a Pinch. Spread fingers to release. A curled Crimp grasp also works on a Jug, and a `140 ms` post-ready continuity buffer bridges single-frame closed-fist landmark dropouts without masking genuine releases. **Calibrate** optionally records personal shapes and Undercling/sidepull orientations; its first step can swap L/R labels.
 
@@ -22,7 +25,7 @@ Choose **Use your camera**. Start with relaxed Jug fists near your chest, with s
 
 **Visual & procedural audio feedback:** sculpted holds display 3D bevels, chalk wear on visited holds, inward double-chevrons on Underclings and sidepulls, and `L`/`R` match arcs on finish/dyno holds. The climber renders with a warm slate shadow pass, dynamic front/back arm depth sorting on cross-throughs, gaze tracking, non-displacing wrist grip glyphs, and amber/coral strain warning arcs (`· straining!` in the HUD) before overload slips. Layered procedural Web Audio synthesizes weighted catch thuds, rock taps, dyno harmonic pings, release brushes, chalk scrapes, launch air rush, and a resolving finish chime—routed to both speakers and local test recordings with zero external audio files.
 
-Ordinary play processes camera frames locally without saving video. **Record a local play test** explicitly records a 60-second split-screen WebM with camera, game, game sound, and diagnostics (never microphone audio) under Git-ignored `personal-recordings/<session>/`. See [recorded test instructions](validation/RECORDED_TESTS.md).
+Ordinary play processes camera frames locally without saving video. **Record a local play test** explicitly records a 60-second split-screen WebM with camera, game, game sound, and diagnostics (never microphone audio): when running via the local server (`127.0.0.1`), it writes to Git-ignored `personal-recordings/<session>/`; when hosted statically on GitHub Pages, it skips `/api/recordings/*` cleanly (`0` HTTP errors) and provides instant in-browser video + JSON diagnostic downloads. See [recorded test instructions](validation/RECORDED_TESTS.md).
 
 ## Develop and verify
 
@@ -33,15 +36,18 @@ npm ci
 npm run assets:prepare
 npm run check
 npm run campaign:check
+npx tsx scripts/benchmark-perf.ts
 npm run build
 npm run web:check
-npm run dev
+node scripts/validate-web.mjs
 ```
 
 - `assets:prepare` verifies pinned official `@mediapipe/tasks-vision@0.10.32` models (`pose`, `hand`, `holistic`) and matching SIMD/fallback WASM binaries.
 - `check` runs `tsc --noEmit` and **113** Vitest unit, physics, tracking, centering, playability, and recording-isolation tests across 10 files.
 - `campaign:check` solves all **12** routes under both `anchors` and legacy `motors` (**24/24** climbs) and verifies 100% identical fresh replays.
+- `benchmark-perf.ts` benchmarks **72,000** 120 Hz simulation steps (`600 s` simulated across `AnchorRig` + `Rig` in `1.62 s` wall, **`369.6×` realtime**, combined **`p95 = 0.0316 ms`** vs `< 1.0 ms` budget; [validation/perf-benchmark.json](validation/perf-benchmark.json)).
 - `web:check` launches the standalone server (`127.0.0.1:4318`) and runs **14** Playwright E2E and HTTP asset checks in Microsoft Edge—covering asset hashes, offline-only network guards, zero 4xx/5xx responses, practice gameplay, Grip Lab, Watch Beta, Assisted & Practice-Anchor settings, `1280×720` (DPR 1 & 1.25) and `1024×640` responsive bounds, and real GPU worker inference across both `paired` and `holistic` providers on `/diagnostics.html`.
+- `validate-web.mjs` verifies `game/dist/` under the `/crux-motion/` subpath (or live `--url=https://superjay0208.github.io/crux-motion/`), enforcing lazy camera model loading (`0` `.task`/`.wasm` fetched on landing), 180-frame continuous simulation/render profiling (**`153–164 FPS`**, **`0.73–0.96 ms` mean frame work**, `0` long tasks), `?route=motion-09` deep-linking, reload persistence, and GPU worker execution ([validation/web-subpath-perf.json](validation/web-subpath-perf.json), [validation/web-live-perf.json](validation/web-live-perf.json)).
 
 Automated tests, pilot solutions, and counterfactual landmark replays verify implementation correctness and mechanics, not live human playability. Dependency notices: [THIRD_PARTY.md](THIRD_PARTY.md). Current verification evidence: [validation/REPORT.md](validation/REPORT.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
