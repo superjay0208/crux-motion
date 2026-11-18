@@ -1,7 +1,7 @@
 {
   "url": "https://superjay0208.github.io/crux-motion/",
   "mode": "live",
-  "recordedAt": "2026-11-18T03:59:48.446Z",
+  "recordedAt": "2026-11-18T05:49:37.823Z",
   "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "runtimeHygiene": {
     "pageErrors": 0,
@@ -10,50 +10,56 @@
     "externalRequests": 0
   },
   "initialLoad": {
-    "domContentLoadedMs": 379.7,
-    "loadEventMs": 566.7,
-    "fcpMs": 620,
-    "requestsCount": 6,
-    "transferBytes": 161501,
-    "responseBodyBytes": 159701,
+    "domContentLoadedMs": 386.1,
+    "loadEventMs": 574.4,
+    "fcpMs": 884,
+    "requestsCount": 9,
+    "transferBytes": 355303,
+    "responseBodyBytes": 352603,
     "heavyCameraAssetsOnLanding": 0,
     "displayFontLoaded": true,
+    "fontsLoaded": {
+      "fredoka": true,
+      "bebasNeue": true,
+      "display": true
+    },
+    "openBouldersOnLanding": 12,
     "subpathSolutionCheck": {
       "ok": true,
       "status": 200,
       "route": "motion-01",
       "controller": "anchors",
-      "frames": 82
+      "frames": 86
     },
-    "wallDemoTickAttr": "15",
-    "wallCaption": "01 / JUG LADDERReach · Catch · Match"
+    "wallDemoTickAttr": "20",
+    "wallCaption": "01 / WARMUP BUCKETSB1 · Jugs"
   },
   "performance": {
     "introShowcase180Frames": {
       "frames": 180,
-      "elapsedMs": 3018.7,
-      "simTicksAdvanced": 207,
-      "fps": 59.63,
+      "elapsedMs": 3015.4,
+      "simTicksAdvanced": 240,
+      "fps": 59.69,
       "frameDeltaP50Ms": 16.7,
       "frameDeltaP95Ms": 16.8,
       "frameDeltaMaxMs": 16.8,
-      "frameWorkMeanMs": 0.86,
-      "frameWorkP50Ms": 0.8,
-      "frameWorkP95Ms": 1.3,
+      "frameWorkMeanMs": 1.16,
+      "frameWorkP50Ms": 1.1,
+      "frameWorkP95Ms": 1.6,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     },
     "practiceClimb180Frames": {
       "frames": 180,
-      "elapsedMs": 3016.3,
+      "elapsedMs": 3016.6,
       "simTicksAdvanced": 362,
-      "fps": 59.68,
+      "fps": 59.67,
       "frameDeltaP50Ms": 16.7,
       "frameDeltaP95Ms": 16.8,
-      "frameDeltaMaxMs": 16.8,
-      "frameWorkMeanMs": 1.14,
-      "frameWorkP50Ms": 1.1,
-      "frameWorkP95Ms": 1.6,
+      "frameDeltaMaxMs": 17,
+      "frameWorkMeanMs": 1.43,
+      "frameWorkP50Ms": 1.4,
+      "frameWorkP95Ms": 1.8,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     }
@@ -61,12 +67,12 @@
   "features": {
     "routeModalSwitch": {
       "index": 1,
-      "name": "Cross Current"
+      "name": "Campus Rungs"
     },
     "assistedPersistenceReload": true,
     "deepLinkMotion09": {
       "route": 8,
-      "routeName": "First Flight"
+      "routeName": "Split Decision"
     }
   },
   "diagnostics": {
@@ -75,34 +81,34 @@
       {
         "provider": "paired",
         "frames": 5,
-        "initializationAndRunMs": 6537.5,
+        "initializationAndRunMs": 6632.69999999553,
         "inferenceMs": [
-          4495.60000000149,
-          17,
-          16.699999999254942,
-          16,
-          16.100000001490116
+          4510.20000000298,
+          18.400000005960464,
+          17.200000002980232,
+          16.899999998509884,
+          17.100000001490116
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 16.45
+        "steadyStateMeanMs": 17.4
       },
       {
         "provider": "holistic",
         "frames": 5,
-        "initializationAndRunMs": 3272.300000000745,
+        "initializationAndRunMs": 3264,
         "inferenceMs": [
-          2160.800000000745,
-          11.200000002980232,
-          9.300000000745058,
-          9.199999999254942,
+          2160.7000000029802,
+          11,
+          9.5,
+          8.800000004470348,
           9.399999998509884
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 9.78
+        "steadyStateMeanMs": 9.68
       }
     ]
   }
