@@ -1,7 +1,7 @@
 {
   "url": "https://superjay0208.github.io/crux-motion/",
   "mode": "live",
-  "recordedAt": "2026-11-18T02:02:37.774Z",
+  "recordedAt": "2026-11-18T03:59:48.446Z",
   "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
   "runtimeHygiene": {
     "pageErrors": 0,
@@ -10,12 +10,12 @@
     "externalRequests": 0
   },
   "initialLoad": {
-    "domContentLoadedMs": 349,
-    "loadEventMs": 472.1,
-    "fcpMs": null,
-    "requestsCount": 5,
-    "transferBytes": 153071,
-    "responseBodyBytes": 151571,
+    "domContentLoadedMs": 379.7,
+    "loadEventMs": 566.7,
+    "fcpMs": 620,
+    "requestsCount": 6,
+    "transferBytes": 161501,
+    "responseBodyBytes": 159701,
     "heavyCameraAssetsOnLanding": 0,
     "displayFontLoaded": true,
     "subpathSolutionCheck": {
@@ -25,35 +25,35 @@
       "controller": "anchors",
       "frames": 82
     },
-    "wallDemoTickAttr": "0",
+    "wallDemoTickAttr": "15",
     "wallCaption": "01 / JUG LADDERReach · Catch · Match"
   },
   "performance": {
     "introShowcase180Frames": {
       "frames": 180,
-      "elapsedMs": 1111.3,
-      "simTicksAdvanced": 134,
-      "fps": 161.97,
-      "frameDeltaP50Ms": 6.1,
-      "frameDeltaP95Ms": 6.2,
-      "frameDeltaMaxMs": 24.3,
-      "frameWorkMeanMs": 0.73,
-      "frameWorkP50Ms": 0.7,
-      "frameWorkP95Ms": 1.1,
+      "elapsedMs": 3018.7,
+      "simTicksAdvanced": 207,
+      "fps": 59.63,
+      "frameDeltaP50Ms": 16.7,
+      "frameDeltaP95Ms": 16.8,
+      "frameDeltaMaxMs": 16.8,
+      "frameWorkMeanMs": 0.86,
+      "frameWorkP50Ms": 0.8,
+      "frameWorkP95Ms": 1.3,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     },
     "practiceClimb180Frames": {
       "frames": 180,
-      "elapsedMs": 1095,
-      "simTicksAdvanced": 131,
-      "fps": 164.38,
-      "frameDeltaP50Ms": 6.1,
-      "frameDeltaP95Ms": 6.1,
-      "frameDeltaMaxMs": 6.2,
-      "frameWorkMeanMs": 0.93,
-      "frameWorkP50Ms": 0.9,
-      "frameWorkP95Ms": 1.3,
+      "elapsedMs": 3016.3,
+      "simTicksAdvanced": 362,
+      "fps": 59.68,
+      "frameDeltaP50Ms": 16.7,
+      "frameDeltaP95Ms": 16.8,
+      "frameDeltaMaxMs": 16.8,
+      "frameWorkMeanMs": 1.14,
+      "frameWorkP50Ms": 1.1,
+      "frameWorkP95Ms": 1.6,
       "longTasksCount": 0,
       "longTasksMaxMs": 0
     }
@@ -75,34 +75,34 @@
       {
         "provider": "paired",
         "frames": 5,
-        "initializationAndRunMs": 6447.300000000745,
+        "initializationAndRunMs": 6537.5,
         "inferenceMs": [
-          4364.400000002235,
-          19.600000001490116,
-          18.699999999254942,
-          15.900000002235174,
-          16
+          4495.60000000149,
+          17,
+          16.699999999254942,
+          16,
+          16.100000001490116
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 17.55
+        "steadyStateMeanMs": 16.45
       },
       {
         "provider": "holistic",
         "frames": 5,
-        "initializationAndRunMs": 3290.39999999851,
+        "initializationAndRunMs": 3272.300000000745,
         "inferenceMs": [
-          2151.699999999255,
-          10.699999999254942,
-          8.900000002235174,
-          8.899999998509884,
-          9.100000001490116
+          2160.800000000745,
+          11.200000002980232,
+          9.300000000745058,
+          9.199999999254942,
+          9.399999998509884
         ],
         "detectedHands": 0,
         "pass": true,
         "delegate": "GPU",
-        "steadyStateMeanMs": 9.4
+        "steadyStateMeanMs": 9.78
       }
     ]
   }
